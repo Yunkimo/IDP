@@ -13,6 +13,7 @@ from .avatar import create_avatar
 from .backend_client import BackendClient
 from .bubble import SpeechBubble
 from .config import Settings
+from .health import HealthMonitor
 from .image_utils import normalize_image
 from .input_box import ChatInput
 from .llm import LLMClient
@@ -73,6 +74,7 @@ class PetWindow(QWidget):
         self._size_and_position()
         self._init_audio()
         self._init_hotkey()
+        self._init_health()
 
         # 拖拽/点击状态
         self._press_pos = None
@@ -454,6 +456,26 @@ class PetWindow(QWidget):
         """松开快捷键：停止录音并识别。"""
         self._stop_recording()
 
+    # ---------- 健康关怀 ----------
+    def _init_health(self) -> None:
+        """启动久坐检测（按 config.json 的 health_enabled 开关）。"""
+        self.health = HealthMonitor(self.settings, parent=self)
+        self.health.water_due.connect(self._on_water_due)
+        self.health.rest_due.connect(self._on_rest_due)
+        self.health.start()
+
+    def _on_water_due(self) -> None:
+        self._remind_health("坐了好久啦，起来喝口水吧～")
+
+    def _on_rest_due(self) -> None:
+        self._remind_health("该休息一下眼睛啦，站起来活动活动～")
+
+    def _remind_health(self, text: str) -> None:
+        self.show_hint(text)
+        self.avatar.react("poke")
+        if self.settings.enable_voice:
+            self._speak(text)
+
     def _set_voice_hotkey(self) -> None:
         """弹出设置语音快捷键对话框，保存后重启监听。"""
         from .hotkey_dialog import HotkeyDialog
@@ -492,6 +514,7 @@ class PetWindow(QWidget):
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.hotkey is not None:
             self.hotkey.stop()
+        self.health.stop()
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)

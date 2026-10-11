@@ -67,6 +67,11 @@ class Settings:
         self.bubble_timeout_ms: int = int(data.get("bubble_timeout_ms", 8000))
         self.persist_history: bool = bool(data.get("persist_history", True))
 
+        # 健康关怀：久坐检测开关与喝水/休息提醒间隔（分钟）
+        self.health_enabled: bool = bool(data.get("health_enabled", True))
+        self.water_interval_min: int = int(data.get("water_interval_min", 30))
+        self.rest_interval_min: int = int(data.get("rest_interval_min", 60))
+
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")
         self.history_path: Path = BASE_DIR / data.get("history_path", "data/history.json")
@@ -100,6 +105,22 @@ class Settings:
         """更新语音快捷键并写回 config.json，使设置重启后仍然生效。"""
         self.voice_hotkey = hotkey
         self._save_json(voice_hotkey=hotkey)
+
+    def update_health(
+        self, enabled: bool | None = None, water_min: int | None = None, rest_min: int | None = None
+    ) -> None:
+        """更新健康关怀配置并写回 config.json（复用 _save_json）。"""
+        updates: dict[str, object] = {}
+        if enabled is not None:
+            self.health_enabled = bool(enabled)
+            updates["health_enabled"] = self.health_enabled
+        if water_min is not None:
+            self.water_interval_min = int(water_min)
+            updates["water_interval_min"] = self.water_interval_min
+        if rest_min is not None:
+            self.rest_interval_min = int(rest_min)
+            updates["rest_interval_min"] = self.rest_interval_min
+        self._save_json(**updates)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""
