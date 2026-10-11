@@ -88,6 +88,51 @@ LLM_MODEL=deepseek-chat
 | 语音识别没反应 | 确认麦克风权限已允许、whisper 模型已下载 |
 | 回复乱码/报错 | 检查 `.env` 密钥与 base_url 是否可达 |
 | 想换宠物形象 | 图片放入 `assets/` 并更新 `frames` |
+## 桌宠端 A1–A4 联调说明
+
+对应 issue [#1](https://github.com/Yunkimo/IDP/issues/1)–[#4](https://github.com/Yunkimo/IDP/issues/4)，PR [#17](https://github.com/Yunkimo/IDP/pull/17)。
+
+### 后端连接（A1）
+
+桌宠经 `BackendClient`（httpx）访问后端 REST。先起后端并保证 `.env` 的 `BACKEND_URL`、`API_TOKEN` 与后端一致：
+
+```bat
+cd backend && .venv\Scripts\python run.py   :: 监听 8001
+```
+
+- 桌宠内「测试后端连接」应显示「后端正常，课表 N 条、日程 N 条」。
+- 本地请求默认绕过系统代理（`trust_env=False`），避免被本机 Clash 等代理拦成 502。
+
+### 工具调用（A2）
+
+直接对话即可触发，无需额外配置：
+
+- 「帮我加一条明天上午复习英语的日程」→ 写入后端 SQLite。
+- 「查一下明天天气」→ 返回实时天气（wttr.in）。
+- 工具循环最多 3 次，超出转为普通回复。
+
+### 健康关怀 / 久坐提醒（A3）
+
+`config.json`：
+
+```jsonc
+"health_enabled": true,        // 总开关
+"sedentary_interval_min": 45   // 连续久坐满多少分钟提醒一次
+```
+
+判定：**1 分钟内无键鼠输入 = 离座（计时清零）**；否则算「在座」，连续在座满 `sedentary_interval_min` 分钟提醒一次，之后每再满一个间隔再提醒。触发时气泡 + 语音「坐太久啦，起来喝口水、活动一下吧～」。
+
+快速验证：把 `sedentary_interval_min` 临时改成 `1`，持续动键鼠约 1 分钟即触发；验完改回 `45`。
+
+### 实时接收（A4）
+
+`WsListener` 维持 WebSocket 长连接（`/ws`），收到后端事件弹气泡 + 语音：
+
+- `task.created` / `course.created`：新增日程/课表的资源 ID 通知。
+- `reminder.due`：提醒到期（依赖后端 B2 到期调度器，未就绪前不触发）。
+
+断线自动重连并重新拉取 REST 状态。
+
 # 后端 B1 实时广播联调
 
 本节对应 [Issue #5](https://github.com/Yunkimo/IDP/issues/5)，契约尚待 A/C 评审。
