@@ -1,0 +1,18 @@
+# 密钥与本地数据
+.env
+data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 临时音频
+*.mp3
+tmp/
+
+# 模型缓存（faster-whisper 下载到用户目录，通常不在仓库内，兜底忽略）
+*.pt
+*.bin
