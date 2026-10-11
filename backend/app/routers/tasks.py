@@ -1,6 +1,7 @@
 """日程/待办 CRUD 路由。"""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 from .. import db
 from ..auth import require_token
@@ -15,8 +16,11 @@ def list_tasks():
 
 
 @router.post("", status_code=201)
-def create_task(payload: TaskIn):
-    return db.create_task(**payload.model_dump())
+async def create_task(payload: TaskIn, request: Request) -> dict:
+    """在线程池提交日程后发送通知，保持原 REST 响应。"""
+    task = await run_in_threadpool(db.create_task, **payload.model_dump())
+    await request.app.state.push_service.notify("task.created", task["id"])
+    return task
 
 
 @router.put("/{task_id}")
