@@ -1,6 +1,7 @@
 """课表 CRUD 路由。"""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 from .. import db
 from ..auth import require_token
@@ -15,8 +16,11 @@ def list_courses():
 
 
 @router.post("", status_code=201)
-def create_course(payload: CourseIn):
-    return db.create_course(**payload.model_dump())
+async def create_course(payload: CourseIn, request: Request) -> dict:
+    """在线程池提交课表后发送通知，保持原 REST 响应。"""
+    course = await run_in_threadpool(db.create_course, **payload.model_dump())
+    await request.app.state.push_service.notify("course.created", course["id"])
+    return course
 
 
 @router.put("/{course_id}")

@@ -189,3 +189,24 @@ pet/
 ├── sprite.py / bubble.py / input_box.py   UI 组件
 └── app.py        应用引导
 ```
+## B1：后端事件通知
+
+本分支新增的通知路径如下，接口提案见 [api-contract](api-contract.md)，待 A/C 评审。
+
+```text
+POST tasks / courses
+        |
+        v
+线程池中的 SQLite 写入 -- 提交成功 --> PushService.notify
+                                          |
+                                  Event schema 校验
+                                          |
+                                  连接快照，并发发送
+                                     /          \
+                              连接 A 的锁     连接 B 的锁
+                              超时则清理      超时则清理
+```
+
+`/ws` 在握手前验证 token，在断线后清理连接。每个应用生命周期只有一个 PushService，
+退出时停止注册并释放连接。同步 SQLite 不在新增异步路由中直接执行；事件失败不回滚提交。
+本次仅新增必要的广播边界，没有引入 ORM、中间件或额外数据库表。

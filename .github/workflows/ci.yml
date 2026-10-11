@@ -9,6 +9,9 @@ jobs:
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
     defaults:
       run:
         working-directory: backend
@@ -17,15 +20,30 @@ jobs:
 
       - uses: actions/setup-python@v6
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt pytest
+          pip install -r requirements-dev.txt
+
+      - name: Backend formatting and static checks
+        run: |
+          ruff check . ../scripts/smoke_backend_ws.py
+          ruff format --check . ../scripts/smoke_backend_ws.py
 
       - name: Test backend (pytest)
         run: pytest
+
+      - name: Real WebSocket smoke test
+        run: python ../scripts/smoke_backend_ws.py
+
+      - name: Commit checks and secret scan
+        working-directory: .
+        run: pre-commit run --all-files
+
+      - name: Audit backend dependencies
+        run: pip-audit -r requirements.txt
 
   # 桌宠：PyQt6 + pynput + faster-whisper 等，需 Qt offscreen 与虚拟 X 服务器
   desktop:
