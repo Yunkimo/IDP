@@ -13,6 +13,20 @@ venv/
 *.mp3
 tmp/
 
+# 构建产物
+build/
+dist/
+
+# 工具缓存与日志
+.pytest_cache/
+.ruff_cache/
+*.log
+
+# SQLite（默认库在 backend/data/ 下，已被上面的 data/ 忽略；此处兜底自定义 DB_PATH）
+*.db
+*.db-wal
+*.db-shm
+
 # 模型缓存（faster-whisper 下载到用户目录，通常不在仓库内，兜底忽略）
 *.pt
 *.bin
