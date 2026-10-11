@@ -1,10 +1,16 @@
-"""后端 REST 客户端：封装 httpx 调用，统一携带 X-API-Key 鉴权头。
+"""后端客户端：REST（httpx）与 WebSocket（websocket-client）的统一入口。
 
-桌宠端与后端交互的唯一入口，屏蔽 URL 拼接、鉴权、错误处理细节；
-上层（Agent 工具 / 调试入口）只关心业务方法。
+REST 部分封装课表/日程/提醒 CRUD，自动携带 X-API-Key 鉴权头；
+WebSocket 部分用后台线程接收后端事件广播，解析后经 Qt 信号上抛。
 """
 
+import json
+import threading
+from urllib.parse import urlencode
+
 import httpx
+import websocket
+from PyQt6.QtCore import QThread, pyqtSignal
 
 
 class BackendError(Exception):
@@ -125,3 +131,80 @@ class BackendClient:
 
     def delete_reminder(self, reminder_id: int) -> None:
         self._request("DELETE", f"/api/reminders/{reminder_id}")
+
+
+# ---------- WebSocket 实时监听 ----------
+
+
+def build_ws_url(backend_url: str, api_token: str) -> str:
+    """由后端 REST 地址推导 WebSocket 地址：http→ws、https→wss，token 走 query。"""
+    base = backend_url.rstrip("/")
+    if base.startswith("https://"):
+        ws_base = "wss://" + base[len("https://") :]
+    elif base.startswith("http://"):
+        ws_base = "ws://" + base[len("http://") :]
+    else:
+        ws_base = "ws://" + base
+    return f"{ws_base}/ws?{urlencode({'token': api_token})}"
+
+
+def parse_event(raw: str) -> dict | None:
+    """解析一条事件帧；非 JSON 或非对象返回 None（客户端按契约忽略）。"""
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    return data if isinstance(data, dict) else None
+
+
+class WsListener(QThread):
+    """后台线程接收后端 WebSocket 事件广播，解析为 dict 经 event 信号发出。
+
+    断线自动重连（退避 3s）；连接建立失败经 error 信号上报，中途断开静默重连。
+    """
+
+    event = pyqtSignal(dict)
+    error = pyqtSignal(str)
+
+    _RECONNECT_SECS = 3.0
+    _RECV_TIMEOUT_SECS = 1.0
+
+    def __init__(self, url: str, parent=None) -> None:
+        super().__init__(parent)
+        self.url = url
+        self._stop = threading.Event()
+
+    def request_stop(self) -> None:
+        self._stop.set()
+
+    def run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                ws = websocket.create_connection(self.url, timeout=5)
+            except Exception as exc:  # noqa: BLE001 - 后端未起/鉴权失败，上报并退避重试
+                if not self._stop.is_set():
+                    self.error.emit(str(exc))
+                if self._stop.wait(self._RECONNECT_SECS):
+                    break
+                continue
+            try:
+                ws.settimeout(self._RECV_TIMEOUT_SECS)
+                while not self._stop.is_set():
+                    try:
+                        raw = ws.recv()
+                    except websocket.WebSocketTimeoutException:
+                        continue  # 接收超时仅用于周期性检查停止标记
+                    if not raw:
+                        break  # 对端关闭
+                    event = parse_event(raw)
+                    if event is not None:
+                        self.event.emit(event)
+            except Exception:  # noqa: BLE001 - 连接中途断开，静默重连
+                pass
+            finally:
+                try:
+                    ws.close()
+                except Exception:  # noqa: BLE001
+                    pass
+            if self._stop.wait(self._RECONNECT_SECS):
+                break
