@@ -72,6 +72,7 @@ class OpenAICompatProvider(ChatProvider):
         tool_calls = [
             {
                 "id": tc.id,
+                "type": tc.type,  # DeepSeek 反序列化要求 tool_call 带 type 字段，缺了会 422
                 "function": {"name": tc.function.name, "arguments": tc.function.arguments},
             }
             for tc in (msg.tool_calls or [])

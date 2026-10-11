@@ -72,6 +72,7 @@ class _TCFunction:
 class _ToolCall:
     def __init__(self, tool_id, name, arguments):
         self.id = tool_id
+        self.type = "function"
         self.function = _TCFunction(name, arguments)
 
 
@@ -116,5 +117,9 @@ def test_chat_with_tools_parses_tool_calls(monkeypatch):
 
     assert out["content"] == ""
     assert out["tool_calls"] == [
-        {"id": "t1", "function": {"name": "get_weather", "arguments": '{"city":"北京"}'}}
+        {
+            "id": "t1",
+            "type": "function",
+            "function": {"name": "get_weather", "arguments": '{"city":"北京"}'},
+        }
     ]
