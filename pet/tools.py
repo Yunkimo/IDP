@@ -11,6 +11,7 @@ from urllib.parse import quote
 import httpx
 
 from .backend_client import BackendClient
+from .timeparse import normalize_datetime
 
 # 联网工具超时：避免工具循环长时间挂起
 _WEATHER_TIMEOUT_SECS = 8.0
@@ -80,7 +81,12 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
         remind_at: str | None = None,
         **_args,
     ) -> str:
-        backend.create_task(title=title, note=note, due_at=due_at, remind_at=remind_at)
+        backend.create_task(
+            title=title,
+            note=note,
+            due_at=normalize_datetime(due_at),
+            remind_at=normalize_datetime(remind_at),
+        )
         return f"已新增日程「{title}」"
 
     def update_task(task_id: int, **fields) -> str:
@@ -94,7 +100,12 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
     def create_reminder(
         title: str, remind_at: str, body: str = "", channel: str = "both", **_args
     ) -> str:
-        backend.create_reminder(title=title, remind_at=remind_at, body=body, channel=channel)
+        backend.create_reminder(
+            title=title,
+            remind_at=normalize_datetime(remind_at),
+            body=body,
+            channel=channel,
+        )
         return f"已设置提醒「{title}」（{remind_at}）"
 
     def get_weather(city: str, **_args) -> str:
