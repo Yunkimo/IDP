@@ -36,7 +36,12 @@ class BackendClient:
         url = f"{self.base_url}{path}"
         try:
             resp = httpx.request(
-                method, url, headers=self._headers(), json=json, timeout=self._timeout
+                method,
+                url,
+                headers=self._headers(),
+                json=json,
+                timeout=self._timeout,
+                trust_env=False,  # 本地后端不走系统代理，否则会被 Clash 拦成 502
             )
         except httpx.HTTPError as exc:
             raise BackendError(f"后端不可达：{exc}") from exc
