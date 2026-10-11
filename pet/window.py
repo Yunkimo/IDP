@@ -10,7 +10,7 @@ from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 
 from .asr import ASREngine
 from .avatar import create_avatar
-from .backend_client import BackendClient
+from .backend_client import BackendClient, WsListener, build_ws_url
 from .bubble import SpeechBubble
 from .config import Settings
 from .health import HealthMonitor
@@ -64,6 +64,13 @@ class PetWindow(QWidget):
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
         self.backend = BackendClient(settings.backend_url, settings.api_token)
         self.tools = build_tools(self.backend)
+
+        # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
+        self.ws = WsListener(build_ws_url(settings.backend_url, settings.api_token), parent=self)
+        self.ws.event.connect(self._on_backend_event)
+        self.ws.error.connect(lambda e: print(f"[ws] {e}"))
+        if settings.api_token:
+            self.ws.start()
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
@@ -476,6 +483,29 @@ class PetWindow(QWidget):
         if self.settings.enable_voice:
             self._speak(text)
 
+    # ---------- 后端实时事件 ----------
+    def _on_backend_event(self, event: dict) -> None:
+        """处理后端 WebSocket 广播事件（未知类型按契约忽略）。"""
+        etype = event.get("type")
+        if etype == "reminder.due":
+            reminder_id = (event.get("data") or {}).get("id")
+            self._remind_health(self._reminder_text(reminder_id))
+        elif etype == "task.created":
+            self.show_hint("收到新日程啦，需要我帮你看看吗～")
+        elif etype == "course.created":
+            self.show_hint("课表有更新啦～")
+
+    def _reminder_text(self, reminder_id) -> str:
+        """按事件里的资源 ID 用 REST 校正提醒正文；失败给兜底文案。"""
+        try:
+            for r in self.backend.list_reminders():
+                if r.get("id") == reminder_id:
+                    text = f"⏰ {r.get('title') or ''} {r.get('body') or ''}".strip()
+                    return text or "有提醒到啦～"
+        except Exception:  # noqa: BLE001 - 拉取失败用兜底文案
+            pass
+        return "有提醒到啦～"
+
     def _set_voice_hotkey(self) -> None:
         """弹出设置语音快捷键对话框，保存后重启监听。"""
         from .hotkey_dialog import HotkeyDialog
@@ -515,6 +545,8 @@ class PetWindow(QWidget):
         if self.hotkey is not None:
             self.hotkey.stop()
         self.health.stop()
+        self.ws.request_stop()
+        self.ws.wait(2000)
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)
