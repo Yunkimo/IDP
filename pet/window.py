@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 
 from .asr import ASREngine
 from .avatar import create_avatar
+from .backend_client import BackendClient
 from .bubble import SpeechBubble
 from .config import Settings
 from .image_utils import normalize_image
@@ -57,6 +58,9 @@ class PetWindow(QWidget):
         self.llm = LLMClient(create_chat_provider(settings))
         self.asr_engine = ASREngine(settings.whisper_model)
         self.tts_engine = TTSEngine(settings.tts_voice, settings.tts_rate, settings.tts_pitch)
+
+        # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
+        self.backend = BackendClient(settings.backend_url, settings.api_token)
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
@@ -213,6 +217,9 @@ class PetWindow(QWidget):
 
         hotkey_act = menu.addAction("设置语音快捷键…")
         hotkey_act.triggered.connect(self._set_voice_hotkey)
+
+        backend_act = menu.addAction("测试后端连接")
+        backend_act.triggered.connect(self._debug_backend)
 
         quit_act = menu.addAction("退出")
         quit_act.triggered.connect(self.close)
@@ -454,6 +461,16 @@ class PetWindow(QWidget):
     # ---------- 其它 ----------
     def show_hint(self, text: str) -> None:
         self.bubble.set_text(text)
+
+    def _debug_backend(self) -> None:
+        """临时调试入口：拉取后端课表/日程，在气泡显示（A1 验收）。"""
+        try:
+            courses = self.backend.list_courses()
+            tasks = self.backend.list_tasks()
+        except Exception as exc:  # noqa: BLE001 - 调试入口，直接反馈给用户
+            self.show_hint(f"后端不可用：{exc}")
+            return
+        self.show_hint(f"后端正常～课表 {len(courses)} 条、日程 {len(tasks)} 条")
 
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.hotkey is not None:

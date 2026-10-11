@@ -23,6 +23,10 @@ class Settings:
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").strip()
         self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-chat").strip()
 
+        # —— 后端服务配置（API_TOKEN 是后端侧密钥，桌宠端填同一值以通过 X-API-Key 鉴权）——
+        self.backend_url: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8001").strip()
+        self.api_token: str = os.getenv("API_TOKEN", "").strip()
+
         # —— 来自 config.json 的非敏感配置 ——
         self._load_json()
 
