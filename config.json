@@ -28,5 +28,7 @@
   "history_path": "data/history.json",
   "assets_dir": "assets",
   "health_enabled": true,
-  "sedentary_interval_min": 45
+  "sedentary_interval_min": 45,
+  "llm_temperature": 0.9,
+  "llm_max_tokens": 1024
 }
