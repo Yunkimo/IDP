@@ -6,20 +6,27 @@ import numpy as np
 import sounddevice as sd
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from .agent import Agent
+
 
 class ChatWorker(QThread):
     chunk = pyqtSignal(str)  # 流式增量
+    status = pyqtSignal(str)  # 工具执行状态（如「正在安排日程…」）
     done = pyqtSignal(str)  # 完整回复
     error = pyqtSignal(str)
 
-    def __init__(self, client, messages: list[dict], parent=None) -> None:
+    def __init__(
+        self, client, messages: list[dict], tools: dict | None = None, parent=None
+    ) -> None:
         super().__init__(parent)
         self.client = client
         self.messages = messages
+        self.tools = tools or {}
 
     def run(self) -> None:
         try:
-            result = self.client.chat(self.messages, on_chunk=self.chunk.emit)
+            agent = Agent(self.client, self.tools)
+            result = agent.run(self.messages, on_chunk=self.chunk.emit, on_status=self.status.emit)
             self.done.emit(result)
         except Exception as exc:  # noqa: BLE001
             self.error.emit(str(exc))

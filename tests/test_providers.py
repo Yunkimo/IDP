@@ -61,3 +61,65 @@ def test_factory_returns_openai_compat_provider():
 
     provider = create_chat_provider(Settings())
     assert isinstance(provider, OpenAICompatProvider)
+
+
+class _TCFunction:
+    def __init__(self, name, arguments):
+        self.name = name
+        self.arguments = arguments
+
+
+class _ToolCall:
+    def __init__(self, tool_id, name, arguments):
+        self.id = tool_id
+        self.type = "function"
+        self.function = _TCFunction(name, arguments)
+
+
+class _Msg:
+    def __init__(self, content, tool_calls):
+        self.content = content
+        self.tool_calls = tool_calls
+
+
+class _ChoiceMsg:
+    def __init__(self, msg):
+        self.message = msg
+
+
+class _RespMsg:
+    def __init__(self, msg):
+        self.choices = [_ChoiceMsg(msg)]
+
+
+class _CompletionsMsg:
+    def __init__(self, resp):
+        self._resp = resp
+
+    def create(self, **kwargs):
+        return self._resp
+
+
+class _FakeClientMsg:
+    def __init__(self, resp):
+        self.chat = type("Chat", (), {"completions": _CompletionsMsg(resp)})()
+
+
+def test_chat_with_tools_parses_tool_calls(monkeypatch):
+    provider = OpenAICompatProvider("sk", "https://x", "m")
+    msg = _Msg("", [_ToolCall("t1", "get_weather", '{"city":"北京"}')])
+    monkeypatch.setattr(provider, "_client", _FakeClientMsg(_RespMsg(msg)))
+
+    out = provider.chat_with_tools(
+        [{"role": "user", "content": "天气"}],
+        [{"type": "function", "function": {"name": "get_weather"}}],
+    )
+
+    assert out["content"] == ""
+    assert out["tool_calls"] == [
+        {
+            "id": "t1",
+            "type": "function",
+            "function": {"name": "get_weather", "arguments": '{"city":"北京"}'},
+        }
+    ]

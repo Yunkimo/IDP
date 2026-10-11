@@ -19,3 +19,12 @@ class LLMClient:
             raise
         except Exception as exc:  # noqa: BLE001 - 统一包装为 LLMError
             raise LLMError(f"{exc}") from exc
+
+    def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
+        """带工具的单次非流式调用，返回 {"content": str, "tool_calls": [...]}。"""
+        try:
+            return self.provider.chat_with_tools(messages, tools, on_chunk=on_chunk)
+        except LLMError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 统一包装为 LLMError
+            raise LLMError(f"{exc}") from exc
