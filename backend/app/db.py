@@ -1,0 +1,183 @@
+"""SQLite 数据访问层：建表 + 轻量 CRUD（标准库 sqlite3，无 ORM）。
+
+沿用项目轻量风格：记录用 dict 承载；布尔/列表字段在边界处显式转换。
+"""
+
+import json
+import sqlite3
+from contextlib import contextmanager
+from datetime import datetime
+
+from . import config
+
+
+def _iso_now() -> str:
+    return datetime.now().isoformat(timespec="seconds")
+
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS courses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    day_of_week INTEGER NOT NULL,
+    start_time TEXT NOT NULL,
+    end_time TEXT NOT NULL,
+    location TEXT NOT NULL DEFAULT '',
+    weeks TEXT NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    note TEXT NOT NULL DEFAULT '',
+    due_at TEXT,
+    remind_at TEXT,
+    done INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL DEFAULT '',
+    remind_at TEXT NOT NULL,
+    channel TEXT NOT NULL DEFAULT 'both',
+    done INTEGER NOT NULL DEFAULT 0,
+    task_id INTEGER
+);
+"""
+
+
+@contextmanager
+def _conn():
+    config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(config.DB_PATH))
+    conn.row_factory = sqlite3.Row
+    try:
+        yield conn
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def init_db() -> None:
+    """建表（幂等）。"""
+    with _conn() as conn:
+        conn.executescript(_SCHEMA)
+
+
+def _get_by_id(table: str, row_id: int) -> dict | None:
+    with _conn() as conn:
+        row = conn.execute(f"SELECT * FROM {table} WHERE id = ?", (row_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def _delete(table: str, row_id: int) -> bool:
+    with _conn() as conn:
+        cur = conn.execute(f"DELETE FROM {table} WHERE id = ?", (row_id,))
+    return cur.rowcount > 0
+
+
+def _apply_update(table: str, columns: set[str], row_id: int, fields: dict) -> dict | None:
+    """按白名单列更新；weeks 转 JSON、done 转 0/1。table/columns 仅由本模块传入。"""
+    updates = {k: v for k, v in fields.items() if k in columns}
+    if "weeks" in updates:
+        updates["weeks"] = json.dumps(updates["weeks"] or [], ensure_ascii=False)
+    if "done" in updates:
+        updates["done"] = int(bool(updates["done"]))
+    if updates:
+        set_sql = ", ".join(f"{k} = ?" for k in updates)
+        with _conn() as conn:
+            conn.execute(f"UPDATE {table} SET {set_sql} WHERE id = ?", (*updates.values(), row_id))
+    return _get_by_id(table, row_id)
+
+
+# ---------- 课表 courses ----------
+
+
+def list_courses() -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute("SELECT * FROM courses ORDER BY day_of_week, start_time").fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_course(name, day_of_week, start_time, end_time, location="", weeks=None) -> dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO courses (name, day_of_week, start_time, end_time, location, weeks) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (
+                name,
+                day_of_week,
+                start_time,
+                end_time,
+                location,
+                json.dumps(weeks or [], ensure_ascii=False),
+            ),
+        )
+        new_id = cur.lastrowid
+    return _get_by_id("courses", new_id)
+
+
+def update_course(course_id: int, fields: dict) -> dict | None:
+    cols = {"name", "day_of_week", "start_time", "end_time", "location", "weeks"}
+    return _apply_update("courses", cols, course_id, fields)
+
+
+def delete_course(course_id: int) -> bool:
+    return _delete("courses", course_id)
+
+
+# ---------- 日程/待办 tasks ----------
+
+
+def list_tasks() -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute("SELECT * FROM tasks ORDER BY done, due_at, created_at").fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_task(title, note="", due_at=None, remind_at=None) -> dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO tasks (title, note, due_at, remind_at, created_at) VALUES (?, ?, ?, ?, ?)",
+            (title, note, due_at, remind_at, _iso_now()),
+        )
+        new_id = cur.lastrowid
+    return _get_by_id("tasks", new_id)
+
+
+def update_task(task_id: int, fields: dict) -> dict | None:
+    cols = {"title", "note", "due_at", "remind_at", "done"}
+    return _apply_update("tasks", cols, task_id, fields)
+
+
+def delete_task(task_id: int) -> bool:
+    return _delete("tasks", task_id)
+
+
+# ---------- 提醒 reminders ----------
+
+
+def list_reminders() -> list[dict]:
+    with _conn() as conn:
+        rows = conn.execute("SELECT * FROM reminders ORDER BY done, remind_at").fetchall()
+    return [dict(r) for r in rows]
+
+
+def create_reminder(title, remind_at, body="", channel="both", task_id=None) -> dict:
+    with _conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO reminders (title, body, remind_at, channel, task_id) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (title, body, remind_at, channel, task_id),
+        )
+        new_id = cur.lastrowid
+    return _get_by_id("reminders", new_id)
+
+
+def update_reminder(reminder_id: int, fields: dict) -> dict | None:
+    cols = {"title", "body", "remind_at", "channel", "done", "task_id"}
+    return _apply_update("reminders", cols, reminder_id, fields)
+
+
+def delete_reminder(reminder_id: int) -> bool:
+    return _delete("reminders", reminder_id)
