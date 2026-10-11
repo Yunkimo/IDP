@@ -12,6 +12,9 @@ import httpx
 
 from .backend_client import BackendClient
 
+# 联网工具超时：避免工具循环长时间挂起
+_WEATHER_TIMEOUT_SECS = 8.0
+
 
 @dataclass
 class Tool:
@@ -42,7 +45,11 @@ def _fmt_courses(courses: list[dict]) -> str:
     parts = []
     for c in courses:
         loc = f" @{c['location']}" if c.get("location") else ""
-        parts.append(f"周{c['day_of_week']} {c['start_time']}-{c['end_time']} {c['name']}{loc}")
+        parts.append(
+            f"周{c.get('day_of_week', '?')} "
+            f"{c.get('start_time', '')}-{c.get('end_time', '')} "
+            f"{c.get('name', '未命名')}{loc}"
+        )
     return "；".join(parts)
 
 
@@ -53,7 +60,7 @@ def _fmt_tasks(tasks: list[dict]) -> str:
     for t in tasks:
         mark = "✓" if t.get("done") else "○"
         due = f"，截止 {t['due_at']}" if t.get("due_at") else ""
-        parts.append(f"[#{t['id']}]{mark} {t['title']}{due}")
+        parts.append(f"[#{t.get('id', '?')}]{mark} {t.get('title', '未命名')}{due}")
     return "；".join(parts)
 
 
@@ -91,22 +98,28 @@ def build_tools(backend: BackendClient) -> dict[str, Tool]:
         return f"已设置提醒「{title}」（{remind_at}）"
 
     def get_weather(city: str, **_args) -> str:
-        resp = httpx.get(
-            f"https://wttr.in/{quote(city)}",
-            params={"format": "%l：%c %t，体感 %f"},
-            headers={"Accept-Language": "zh"},
-            timeout=8,
-        )
-        resp.raise_for_status()
+        try:
+            resp = httpx.get(
+                f"https://wttr.in/{quote(city)}",
+                params={"format": "%l：%c %t，体感 %f"},
+                headers={"Accept-Language": "zh"},
+                timeout=_WEATHER_TIMEOUT_SECS,
+            )
+            resp.raise_for_status()
+        except httpx.HTTPError as exc:
+            return f"查天气失败：{exc}"
         return resp.text.strip()
 
     def web_search(query: str, **_args) -> str:
         from ddgs import DDGS  # 延迟导入：无网/未装时不影响其它工具
 
-        results = DDGS().text(query, max_results=5)
+        try:
+            results = DDGS().text(query, max_results=5)
+        except Exception as exc:  # noqa: BLE001 - 无网/被限流时给出可读反馈而非挂起
+            return f"搜索「{query}」失败：{exc}"
         if not results:
             return f"没有搜到与「{query}」相关的结果"
-        return "\n".join(f"- {r['title']}：{r['href']}" for r in results)
+        return "\n".join(f"- {r.get('title', '')}：{r.get('href', '')}" for r in results)
 
     return {
         "list_courses": Tool(
