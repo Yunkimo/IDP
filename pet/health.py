@@ -1,9 +1,9 @@
-"""健康关怀：检测用户「连续久坐」时长，超阈值提醒喝水/休息。
+"""健康关怀：检测用户「连续久坐」时长，周期性提醒喝水/休息。
 
 Windows 用 GetLastInputInfo 拿「空闲时长」，连续空闲超过 _BREAK_RESET_SECS
 视为离开座位（久坐计时清零）；否则视为仍在电脑前，累计久坐时长，
-达到喝水/休息阈值时发信号。其它平台无该 API，空闲时长恒为 0（即视为始终在座），
-保证跨平台不崩。
+每累计一个喝水/休息间隔就发一次提醒信号。其它平台无该 API，空闲时长恒为 0
+（即视为始终在座），保证跨平台不崩。
 """
 
 import ctypes
@@ -46,9 +46,10 @@ class _IdleTimer:
 
 
 class HealthMonitor(QObject):
-    """用 QTimer 周期性统计连续久坐时长，超过阈值发出提醒信号。
+    """用 QTimer 周期性统计连续久坐时长，每满一个间隔发一次提醒信号。
 
-    久坐 = 未离开座位（空闲时长 < _BREAK_RESET_SECS）的连续时间。
+    久坐 = 未离开座位（空闲时长 < _BREAK_RESET_SECS）的连续时间；
+    喝水/休息分别按各自间隔周期提醒，离开座位（空闲 ≥ 5 分钟）后计时与提醒周期一并清零。
     """
 
     water_due = pyqtSignal()
@@ -60,8 +61,8 @@ class HealthMonitor(QObject):
         self._idle = idle_source or _IdleTimer()
         self._clock = clock or time.monotonic
         self._session_start: float | None = None  # 本次久坐开始时刻
-        self._water_reminded = False
-        self._rest_reminded = False
+        self._last_water_at: float | None = None  # 上次喝水提醒时刻
+        self._last_rest_at: float | None = None  # 上次休息提醒时刻
 
         self._timer = QTimer(self)
         self._timer.timeout.connect(self._check)
@@ -78,11 +79,11 @@ class HealthMonitor(QObject):
     def _check(self) -> None:
         idle = self._idle.idle_seconds()
         now = self._clock()
-        # 长时间无输入 → 视为离开座位，本次久坐清零
+        # 长时间无输入 → 视为离开座位，久坐计时与提醒周期一并清零
         if idle >= _BREAK_RESET_SECS:
             self._session_start = None
-            self._water_reminded = False
-            self._rest_reminded = False
+            self._last_water_at = None
+            self._last_rest_at = None
             return
         # 仍在电脑前：开始（或延续）久坐计时
         if self._session_start is None:
@@ -90,9 +91,19 @@ class HealthMonitor(QObject):
         sitting = now - self._session_start
         water_min = self._settings.water_interval_min
         rest_min = self._settings.rest_interval_min
-        if water_min > 0 and sitting >= water_min * 60 and not self._water_reminded:
-            self._water_reminded = True
+        if self._due(water_min, sitting, self._last_water_at, now):
+            self._last_water_at = now
             self.water_due.emit()
-        if rest_min > 0 and sitting >= rest_min * 60 and not self._rest_reminded:
-            self._rest_reminded = True
+        if self._due(rest_min, sitting, self._last_rest_at, now):
+            self._last_rest_at = now
             self.rest_due.emit()
+
+    @staticmethod
+    def _due(minutes: int, sitting: float, last_at: float | None, now: float) -> bool:
+        """是否该提醒：已坐满阈值，且距上次提醒已过一个间隔。"""
+        if minutes <= 0:
+            return False
+        threshold = minutes * 60
+        if sitting < threshold:
+            return False
+        return last_at is None or now - last_at >= threshold
