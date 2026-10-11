@@ -60,17 +60,19 @@ def test_no_reminder_when_away(qapp):
     assert fired == []  # 离座（空闲 ≥ 5 分钟）不算久坐
 
 
-def test_reminder_fires_once_per_sitting_session(qapp):
+def test_water_repeats_every_interval(qapp):
     clock = _Clock()
     mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
     mon.water_due.connect(lambda: fired.append("water"))
     mon._check()
     clock.t = 61
-    mon._check()
+    mon._check()  # 第一次
     clock.t = 120
-    mon._check()
-    assert fired == ["water"]  # 同一轮久坐只提醒一次
+    mon._check()  # 距上次 59s，未到一个间隔
+    clock.t = 121
+    mon._check()  # 距上次 60s，第二次
+    assert fired == ["water", "water"]  # 每坐满一个间隔就再提醒一次
 
 
 def test_away_resets_sitting_session(qapp):
