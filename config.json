@@ -1,0 +1,30 @@
+{
+  "pet_name": "小萌",
+  "persona": {
+    "personality": "活泼可爱、有点黏人的桌面小精灵",
+    "tone": "口语化、简短俏皮，多用语气词和适量 emoji"
+  },
+  "personas": {
+    "小萌": {
+      "personality": "活泼可爱、有点黏人的桌面小精灵",
+      "tone": "口语化、简短俏皮，多用语气词和适量 emoji"
+    }
+  },
+  "frames": [
+    "custom.gif"
+  ],
+  "sprite_size": 300,
+  "image_engine": "sprite",
+  "whisper_model": "base",
+  "tts_voice": "zh-CN-XiaoyouNeural",
+  "tts_rate": "+10%",
+  "tts_pitch": "+20Hz",
+  "enable_voice": true,
+  "voice_hotkey": "ctrl+t",
+  "max_history": 20,
+  "max_record_secs": 15,
+  "bubble_timeout_ms": 8000,
+  "persist_history": true,
+  "history_path": "data/history.json",
+  "assets_dir": "assets"
+}

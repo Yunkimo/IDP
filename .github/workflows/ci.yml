@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+jobs:
+  # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
+  backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pytest
+
+      - name: Test backend (pytest)
+        run: pytest
+
+  # 桌宠：PyQt6 + pynput + faster-whisper 等，需 Qt offscreen 与虚拟 X 服务器
+  desktop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 libgl1 libxkbcommon-x11-0 libxcb-xinerama0 \
+            libdbus-1-3 libfontconfig1 libportaudio2 \
+            xvfb xauth
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Lint (ruff)
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Test (pytest)
+        # xvfb-run 提供虚拟 X 显示器，供 pynput 探测 X 连接；Qt 走 offscreen 平台
+        run: xvfb-run -a pytest tests/
+        env:
+          QT_QPA_PLATFORM: offscreen
