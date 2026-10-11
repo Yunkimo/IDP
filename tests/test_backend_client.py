@@ -81,3 +81,53 @@ def test_network_error_wrapped(monkeypatch):
     monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
     with pytest.raises(BackendError, match="后端不可达"):
         BackendClient("http://h", "tok").health()
+
+
+def test_non_json_2xx_wrapped(monkeypatch):
+    class _BadJsonResp:
+        status_code = 200
+        text = "<html>oops</html>"
+
+        def json(self):
+            raise ValueError("no json")
+
+    monkeypatch.setattr("pet.backend_client.httpx.request", lambda *a, **k: _BadJsonResp())
+    with pytest.raises(BackendError, match="不是合法 JSON"):
+        BackendClient("http://h", "tok").list_tasks()
+
+
+def test_crud_wrappers_use_request(monkeypatch):
+    calls: list = []
+
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
+        calls.append((method, url, json))
+        return _Resp(200, {"ok": True})
+
+    monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
+    c = BackendClient("http://h", "tok")
+
+    c.create_course("数学", 1, "08:00", "09:40", location="A101", weeks=[1, 2])
+    c.update_course(3, name="语文")
+    c.delete_course(3)
+    c.update_task(5, done=True)
+    c.list_reminders()
+    c.update_reminder(7, channel="pc")
+    c.delete_reminder(7)
+
+    assert [m for m, _, _ in calls] == ["POST", "PUT", "DELETE", "PUT", "GET", "PUT", "DELETE"]
+
+
+def test_build_ws_url_schemes():
+    from pet.backend_client import build_ws_url
+
+    assert build_ws_url("http://127.0.0.1:8001", "tok") == "ws://127.0.0.1:8001/ws?token=tok"
+    assert build_ws_url("https://api.x.com", "tok") == "wss://api.x.com/ws?token=tok"
+    assert build_ws_url("127.0.0.1:8001", "tok") == "ws://127.0.0.1:8001/ws?token=tok"
+
+
+def test_parse_event_rejects_non_json_and_non_dict():
+    from pet.backend_client import parse_event
+
+    assert parse_event("not json") is None
+    assert parse_event("[1, 2]") is None
+    assert parse_event('{"type":"task.created"}') == {"type": "task.created"}

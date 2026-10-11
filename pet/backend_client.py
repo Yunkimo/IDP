@@ -49,7 +49,10 @@ class BackendClient:
             raise BackendError(f"后端返回 {resp.status_code}: {resp.text}")
         if resp.status_code == 204:
             return None
-        return resp.json()
+        try:
+            return resp.json()
+        except ValueError as exc:  # 非 JSON 的 2xx 响应，避免向上抛裸异常
+            raise BackendError(f"后端响应不是合法 JSON：{resp.text[:200]}") from exc
 
     # ---------- 健康检查（无鉴权） ----------
     def health(self) -> dict:

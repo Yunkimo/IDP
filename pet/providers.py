@@ -29,10 +29,19 @@ class ChatProvider(ABC):
 class OpenAICompatProvider(ChatProvider):
     """OpenAI 兼容协议实现（DeepSeek 等）。客户端惰性创建，避免未配密钥时启动即报错。"""
 
-    def __init__(self, api_key: str, base_url: str, model: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        temperature: float = 0.9,
+        max_tokens: int = 1024,
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         self._client: OpenAI | None = None
 
     def _get_client(self) -> OpenAI:
@@ -45,8 +54,8 @@ class OpenAICompatProvider(ChatProvider):
             model=self.model,
             messages=messages,
             stream=True,
-            temperature=0.9,
-            max_tokens=1024,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
         parts: list[str] = []
         for chunk in stream:
@@ -65,8 +74,8 @@ class OpenAICompatProvider(ChatProvider):
             messages=messages,
             tools=tools,
             tool_choice="auto",
-            temperature=0.9,
-            max_tokens=1024,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
         msg = resp.choices[0].message
         tool_calls = [
@@ -86,4 +95,6 @@ def create_chat_provider(settings: Settings) -> ChatProvider:
         settings.llm_api_key,
         settings.llm_base_url,
         settings.llm_model,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
     )

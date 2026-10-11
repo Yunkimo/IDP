@@ -45,6 +45,10 @@ class Settings:
         self.tone: str = persona.get("tone", "口语化、简短俏皮")
         self.personas: dict[str, dict] = data.get("personas", {})
 
+        # LLM 生成参数（非敏感，默认保持现有行为）
+        self.llm_temperature: float = float(data.get("llm_temperature", 0.9))
+        self.llm_max_tokens: int = int(data.get("llm_max_tokens", 1024))
+
         self.frames: list[str] = data.get("frames", [])
         self.sprite_size: int = int(data.get("sprite_size", 180))
 
