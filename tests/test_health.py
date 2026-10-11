@@ -1,4 +1,4 @@
-"""HealthMonitor 久坐检测逻辑测试：注入假空闲源，绕过真实系统 API 与 QTimer。"""
+"""HealthMonitor 久坐检测逻辑测试：注入假空闲源与假时钟，绕过真实系统 API 与 QTimer。"""
 
 from pet.health import HealthMonitor
 
@@ -18,52 +18,93 @@ class _Idle:
         return self.seconds
 
 
-def test_water_due_when_idle_exceeds(qapp):
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(120))
+class _Clock:
+    def __init__(self) -> None:
+        self.t = 0.0
+
+    def __call__(self) -> float:
+        return self.t
+
+
+def test_water_due_after_sitting_threshold(qapp):
+    clock = _Clock()
+    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
     mon.water_due.connect(lambda: fired.append("water"))
+    mon._check()  # 在座，开始计时
+    clock.t = 61
     mon._check()
     assert fired == ["water"]
 
 
-def test_rest_due_when_idle_exceeds(qapp):
-    mon = HealthMonitor(_Settings(water=0, rest=1), idle_source=_Idle(120))
+def test_rest_due_after_sitting_threshold(qapp):
+    clock = _Clock()
+    mon = HealthMonitor(_Settings(water=0, rest=1), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
     mon.rest_due.connect(lambda: fired.append("rest"))
+    mon._check()
+    clock.t = 61
     mon._check()
     assert fired == ["rest"]
 
 
-def test_no_reminder_when_active(qapp):
-    mon = HealthMonitor(_Settings(water=1, rest=1), idle_source=_Idle(1))
+def test_no_reminder_when_away(qapp):
+    clock = _Clock()
+    mon = HealthMonitor(_Settings(water=1, rest=1), idle_source=_Idle(600), clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("w"))
-    mon.rest_due.connect(lambda: fired.append("r"))
+    mon.water_due.connect(lambda: fired.append("water"))
+    mon.rest_due.connect(lambda: fired.append("rest"))
     mon._check()
-    assert fired == []
+    clock.t = 600
+    mon._check()
+    assert fired == []  # 离座（空闲 ≥ 5 分钟）不算久坐
 
 
-def test_reminder_fires_once_per_idle_session(qapp):
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(120))
+def test_reminder_fires_once_per_sitting_session(qapp):
+    clock = _Clock()
+    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
     mon.water_due.connect(lambda: fired.append("water"))
     mon._check()
+    clock.t = 61
+    mon._check()
+    clock.t = 120
     mon._check()
     assert fired == ["water"]  # 同一轮久坐只提醒一次
 
 
-def test_reset_after_activity(qapp):
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(120))
+def test_away_resets_sitting_session(qapp):
+    clock = _Clock()
+    idle = _Idle(10)
+    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=idle, clock=clock)
     fired: list[str] = []
     mon.water_due.connect(lambda: fired.append("water"))
+    mon._check()  # 在座，session 开始于 t=0
+    clock.t = 61
     mon._check()
     assert fired == ["water"]
 
-    mon._idle = _Idle(1)  # 用户恢复操作
-    mon._check()  # 重置标记
-    mon._idle = _Idle(120)  # 再次久坐
+    idle.seconds = 600  # 离开座位
+    mon._check()
+
+    idle.seconds = 10  # 回来，重新计时
+    clock.t = 62
+    mon._check()
+    clock.t = 123
     mon._check()
     assert fired == ["water", "water"]
+
+
+def test_short_idle_within_session_counts_as_sitting(qapp):
+    # 空闲 299 秒（< 5 分钟）仍是「在座」，累计时长照常触发
+    clock = _Clock()
+    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(299), clock=clock)
+    fired: list[str] = []
+    mon.water_due.connect(lambda: fired.append("water"))
+    mon._check()
+    clock.t = 61
+    mon._check()
+    assert fired == ["water"]
 
 
 def test_settings_health_defaults():
