@@ -22,7 +22,7 @@ dist/
 .ruff_cache/
 *.log
 
-# 测试覆盖率
+# 覆盖率产物
 .coverage
 .coverage.*
 
