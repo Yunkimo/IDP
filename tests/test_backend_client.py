@@ -18,8 +18,10 @@ class _Resp:
 def test_list_courses_builds_url_and_header(monkeypatch):
     captured: dict = {}
 
-    def fake_request(method, url, headers, json, timeout):
-        captured.update(method=method, url=url, headers=headers, json=json, timeout=timeout)
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
+        captured.update(
+            method=method, url=url, headers=headers, json=json, timeout=timeout, trust_env=trust_env
+        )
         return _Resp(200, [{"id": 1, "name": "高等数学"}])
 
     monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
@@ -29,12 +31,13 @@ def test_list_courses_builds_url_and_header(monkeypatch):
     assert captured["url"] == "http://127.0.0.1:8001/api/courses"
     assert captured["headers"] == {"X-API-Key": "secret"}
     assert captured["method"] == "GET"
+    assert captured["trust_env"] is False  # 本地后端必须绕过系统代理（Clash 会拦成 502）
 
 
 def test_create_reminder_sends_payload(monkeypatch):
     sent: dict = {}
 
-    def fake_request(method, url, headers, json, timeout):
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
         sent["json"] = json
         return _Resp(201, {"id": 7, "title": "喝水"})
 
@@ -53,7 +56,7 @@ def test_create_reminder_sends_payload(monkeypatch):
 
 
 def test_delete_returns_none_on_204(monkeypatch):
-    def fake_request(method, url, headers, json, timeout):
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
         return _Resp(204)
 
     monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
@@ -61,7 +64,7 @@ def test_delete_returns_none_on_204(monkeypatch):
 
 
 def test_non_2xx_raises_backend_error(monkeypatch):
-    def fake_request(method, url, headers, json, timeout):
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
         return _Resp(401, text="API Key 无效")
 
     monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
@@ -72,7 +75,7 @@ def test_non_2xx_raises_backend_error(monkeypatch):
 def test_network_error_wrapped(monkeypatch):
     import httpx
 
-    def fake_request(method, url, headers, json, timeout):
+    def fake_request(method, url, headers, json, timeout, trust_env=False):
         raise httpx.ConnectError("connection refused")
 
     monkeypatch.setattr("pet.backend_client.httpx.request", fake_request)
