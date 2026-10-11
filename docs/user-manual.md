@@ -88,3 +88,29 @@ LLM_MODEL=deepseek-chat
 | 语音识别没反应 | 确认麦克风权限已允许、whisper 模型已下载 |
 | 回复乱码/报错 | 检查 `.env` 密钥与 base_url 是否可达 |
 | 想换宠物形象 | 图片放入 `assets/` 并更新 `frames` |
+# 后端 B1 实时广播联调
+
+本节对应 [Issue #5](https://github.com/Yunkimo/IDP/issues/5)，契约尚待 A/C 评审。
+在 `backend/` 安装 `requirements-dev.txt`，复制 `.env.example` 为 `.env`，填入随机 `API_TOKEN`。
+执行 `python run.py` 启动开发服务（监听 8001，热重载会断开连接）。
+
+客户端连接 `ws://127.0.0.1:8001/ws?token=<URL 编码的 API_TOKEN>`。
+通过 REST 创建日程或课表后，已连接客户端收到资源 ID 通知，再用 REST 读取完整状态。
+完整字段及失败语义见 [API 契约](api-contract.md)。不要把密钥放进截图或命令历史。
+
+在仓库根目录用后端虚拟环境执行 `python scripts/smoke_backend_ws.py`，脚本自行启动临时服务，
+用两个真实 WebSocket 客户端检查 30 次广播、错误凭证拒绝和日志脱敏。它只写临时数据库，
+会清理进程和文件，失败返回非零退出码，不影响个人数据库。
+
+服务器部署命令（从 `backend/` 执行；由环境提供密钥，固定一个 worker）：
+
+```bash
+python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --ws websockets-sansio --ws-max-size 4096
+```
+
+该命令不启用热重载。对外接入需由部署负责人配置 TLS、代理 query 脱敏和访问控制，
+公网用户会话方案另行评审。当前不提供多用户隔离。
+
+排查：握手 403 检查 token 和服务端配置；普通 HTTP GET 404 不表示 WS 不可用；
+断线后重连并重新拉取 REST；慢客户端可能以 1013 关闭。收不到提醒到期事件时，
+先确认 B2 是否已实现，本次 B1 尚未启动调度器。
