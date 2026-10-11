@@ -19,6 +19,7 @@ from .llm import LLMClient
 from .memory import Memory
 from .persona import build_system_prompt
 from .providers import create_chat_provider
+from .tools import build_tools
 from .tts import TTSEngine
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
@@ -61,6 +62,7 @@ class PetWindow(QWidget):
 
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
         self.backend = BackendClient(settings.backend_url, settings.api_token)
+        self.tools = build_tools(self.backend)
 
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
@@ -81,6 +83,7 @@ class PetWindow(QWidget):
         self.asr_worker: ASRWorker | None = None
         self.tts_worker: TTSWorker | None = None
         self._tts_tmp: str | None = None
+        self._tool_status_active = False
 
     # ---------- 初始化 ----------
     def _init_window(self) -> None:
@@ -330,11 +333,25 @@ class PetWindow(QWidget):
         if self.chat_worker is not None and self.chat_worker.isRunning():
             return
         self.input.set_busy(True)
-        self.chat_worker = ChatWorker(self.llm, messages, parent=self)
-        self.chat_worker.chunk.connect(self.bubble.append_chunk)
+        self._tool_status_active = False
+        self.chat_worker = ChatWorker(self.llm, messages, tools=self.tools, parent=self)
+        self.chat_worker.chunk.connect(self._on_chunk)
+        self.chat_worker.status.connect(self._on_tool_status)
         self.chat_worker.done.connect(self._on_chat_done)
         self.chat_worker.error.connect(self._on_chat_error)
         self.chat_worker.start()
+
+    def _on_chunk(self, chunk: str) -> None:
+        """收到流式增量；若此前显示过工具状态，先清空再开始打字机。"""
+        if self._tool_status_active:
+            self.bubble.clear()
+            self._tool_status_active = False
+        self.bubble.append_chunk(chunk)
+
+    def _on_tool_status(self, text: str) -> None:
+        """工具执行中：在气泡显示进行状态（首块回复到达时被替换）。"""
+        self._tool_status_active = True
+        self.bubble.set_text(text)
 
     def _on_chat_done(self, text: str) -> None:
         self.input.set_busy(False)
