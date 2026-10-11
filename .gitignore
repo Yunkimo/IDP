@@ -22,6 +22,10 @@ dist/
 .ruff_cache/
 *.log
 
+# 测试覆盖率
+.coverage
+.coverage.*
+
 # SQLite（默认库在 backend/data/ 下，已被上面的 data/ 忽略；此处兜底自定义 DB_PATH）
 *.db
 *.db-wal
