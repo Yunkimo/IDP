@@ -4,10 +4,9 @@ from pet.health import HealthMonitor
 
 
 class _Settings:
-    def __init__(self, enabled=True, water=30, rest=60) -> None:
+    def __init__(self, enabled=True, sedentary_min=45) -> None:
         self.health_enabled = enabled
-        self.water_interval_min = water
-        self.rest_interval_min = rest
+        self.sedentary_interval_min = sedentary_min
 
 
 class _Idle:
@@ -26,45 +25,33 @@ class _Clock:
         return self.t
 
 
-def test_water_due_after_sitting_threshold(qapp):
+def test_due_after_sitting_threshold(qapp):
     clock = _Clock()
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(10), clock=clock)
+    mon = HealthMonitor(_Settings(sedentary_min=1), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("water"))
+    mon.sedentary_due.connect(lambda: fired.append("due"))
     mon._check()  # 在座，开始计时
     clock.t = 61
     mon._check()
-    assert fired == ["water"]
-
-
-def test_rest_due_after_sitting_threshold(qapp):
-    clock = _Clock()
-    mon = HealthMonitor(_Settings(water=0, rest=1), idle_source=_Idle(10), clock=clock)
-    fired: list[str] = []
-    mon.rest_due.connect(lambda: fired.append("rest"))
-    mon._check()
-    clock.t = 61
-    mon._check()
-    assert fired == ["rest"]
+    assert fired == ["due"]
 
 
 def test_no_reminder_when_away(qapp):
     clock = _Clock()
-    mon = HealthMonitor(_Settings(water=1, rest=1), idle_source=_Idle(600), clock=clock)
+    mon = HealthMonitor(_Settings(sedentary_min=1), idle_source=_Idle(60), clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("water"))
-    mon.rest_due.connect(lambda: fired.append("rest"))
+    mon.sedentary_due.connect(lambda: fired.append("due"))
     mon._check()
-    clock.t = 600
+    clock.t = 120
     mon._check()
-    assert fired == []  # 离座（空闲 ≥ 5 分钟）不算久坐
+    assert fired == []  # 空闲 ≥ 1 分钟 = 离座，不算久坐
 
 
-def test_water_repeats_every_interval(qapp):
+def test_repeats_every_interval(qapp):
     clock = _Clock()
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(10), clock=clock)
+    mon = HealthMonitor(_Settings(sedentary_min=1), idle_source=_Idle(10), clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("water"))
+    mon.sedentary_due.connect(lambda: fired.append("due"))
     mon._check()
     clock.t = 61
     mon._check()  # 第一次
@@ -72,21 +59,21 @@ def test_water_repeats_every_interval(qapp):
     mon._check()  # 距上次 59s，未到一个间隔
     clock.t = 121
     mon._check()  # 距上次 60s，第二次
-    assert fired == ["water", "water"]  # 每坐满一个间隔就再提醒一次
+    assert fired == ["due", "due"]
 
 
-def test_away_resets_sitting_session(qapp):
+def test_away_resets_session(qapp):
     clock = _Clock()
     idle = _Idle(10)
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=idle, clock=clock)
+    mon = HealthMonitor(_Settings(sedentary_min=1), idle_source=idle, clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("water"))
+    mon.sedentary_due.connect(lambda: fired.append("due"))
     mon._check()  # 在座，session 开始于 t=0
     clock.t = 61
     mon._check()
-    assert fired == ["water"]
+    assert fired == ["due"]
 
-    idle.seconds = 600  # 离开座位
+    idle.seconds = 60  # 离座（空闲 ≥ 1 分钟）
     mon._check()
 
     idle.seconds = 10  # 回来，重新计时
@@ -94,19 +81,19 @@ def test_away_resets_sitting_session(qapp):
     mon._check()
     clock.t = 123
     mon._check()
-    assert fired == ["water", "water"]
+    assert fired == ["due", "due"]
 
 
-def test_short_idle_within_session_counts_as_sitting(qapp):
-    # 空闲 299 秒（< 5 分钟）仍是「在座」，累计时长照常触发
+def test_idle_just_under_away_threshold_still_sitting(qapp):
+    # 空闲 59 秒（< 1 分钟）仍是「在座」，累计时长照常触发
     clock = _Clock()
-    mon = HealthMonitor(_Settings(water=1, rest=0), idle_source=_Idle(299), clock=clock)
+    mon = HealthMonitor(_Settings(sedentary_min=1), idle_source=_Idle(59), clock=clock)
     fired: list[str] = []
-    mon.water_due.connect(lambda: fired.append("water"))
+    mon.sedentary_due.connect(lambda: fired.append("due"))
     mon._check()
     clock.t = 61
     mon._check()
-    assert fired == ["water"]
+    assert fired == ["due"]
 
 
 def test_settings_health_defaults():
@@ -114,5 +101,4 @@ def test_settings_health_defaults():
 
     s = Settings()
     assert isinstance(s.health_enabled, bool)
-    assert s.water_interval_min > 0
-    assert s.rest_interval_min > 0
+    assert s.sedentary_interval_min > 0

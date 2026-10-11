@@ -467,15 +467,11 @@ class PetWindow(QWidget):
     def _init_health(self) -> None:
         """启动久坐检测（按 config.json 的 health_enabled 开关）。"""
         self.health = HealthMonitor(self.settings, parent=self)
-        self.health.water_due.connect(self._on_water_due)
-        self.health.rest_due.connect(self._on_rest_due)
+        self.health.sedentary_due.connect(self._on_sedentary_due)
         self.health.start()
 
-    def _on_water_due(self) -> None:
-        self._remind_health("坐了好久啦，起来喝口水吧～")
-
-    def _on_rest_due(self) -> None:
-        self._remind_health("该休息一下眼睛啦，站起来活动活动～")
+    def _on_sedentary_due(self) -> None:
+        self._remind_health("坐太久啦，起来喝口水、活动一下吧～")
 
     def _remind_health(self, text: str) -> None:
         self.show_hint(text)
