@@ -113,4 +113,5 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --ws web
 
 排查：握手 403 检查 token 和服务端配置；普通 HTTP GET 404 不表示 WS 不可用；
 断线后重连并重新拉取 REST；慢客户端可能以 1013 关闭。收不到提醒到期事件时，
-先确认 B2 是否已实现，本次 B1 尚未启动调度器。
+检查是否启用 B2、提醒 channel、到期时间及发送状态。B2 使用方法和备份恢复见
+[提醒调度说明](b2-scheduler.md)；`phone` 渠道仍等待 B3。
