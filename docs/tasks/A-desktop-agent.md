@@ -71,7 +71,9 @@
 - 在 `pet/backend_client.py` 内新增 `WsListener(QThread)`：用 `websocket-client` 连后端 `/ws`，收到事件 emit `event(dict)`。
 - 改 `pet/window.py`：新增 `_on_backend_event`，`reminder.due` → `show_hint` + `_speak` + 形象反应（`avatar.react`）。
 - 依赖：成员 B 的 B1（WebSocket 端点）。
-- 验收：后端 API 加一条 `remind_at=now+10s` 的提醒，桌宠 10 秒内弹出气泡 + 语音。
+- 验收（2026-10-12 按用户授权统一）：联调扫描 1 秒，计划到期后 5 秒内显示气泡；
+  至少 30 条样本全部限时显示。语音另验证真实合成及播放器开始/结束，故障重发及断线重连只通知一次。
+  原“创建后 10 秒内显示一个 10 秒后才到期的提醒”保留为历史冲突，原因及前后实测见 `docs/b2-acceptance.md`。
 
 ## 5. 技术约定（必须遵守）
 

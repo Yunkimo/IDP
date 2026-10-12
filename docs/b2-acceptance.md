@@ -1,5 +1,8 @@
 # B2 / A4 联调验收记录（2026-10-12）
 
+> 更新：用户随后授权统一修复 B2 与 A4，修复后本轮验收已通过，见 [最新结果](b2-final-acceptance.md)。
+> 以下保留首次失败记录，不代表最新代码仍有相同问题。
+
 **结论：基础链路通过，完整验收未通过；保留 PR #21 待评审状态。**
 被测业务代码 `f98d82df138b4df6131537d26d3f9244756b2d5d`，
 对应 [B2 #6](https://github.com/Yunkimo/IDP/issues/6)、[A4 #4](https://github.com/Yunkimo/IDP/issues/4)、
