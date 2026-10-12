@@ -61,7 +61,11 @@ class PetWindow(QWidget):
         self.llm = LLMClient(create_chat_provider(settings))
         self.asr_engine = ASREngine(settings.whisper_model)
         self.tts_engine = TTSEngine(
-            settings.tts_voice, settings.tts_rate, settings.tts_pitch, settings.tts_timeout_seconds
+            settings.tts_voice,
+            settings.tts_rate,
+            settings.tts_pitch,
+            settings.tts_timeout_seconds,
+            settings.tts_windows_fallback,
         )
 
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
@@ -402,6 +406,7 @@ class PetWindow(QWidget):
 
     def _on_media_status(self, status) -> None:
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.player.setSource(QUrl())
             self._cleanup_tts_tmp()
 
     def _cleanup_tts_tmp(self) -> None:

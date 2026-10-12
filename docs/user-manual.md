@@ -171,3 +171,7 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --ws web
 语音默认使用 `zh-CN-XiaoxiaoNeural`，旧默认 `zh-CN-XiaoyouNeural` 在读取时兼容迁移，
 不覆盖其他自选声音。`tts_timeout_seconds` 默认 30 秒（允许大于 0、最多 120），
 上游失败或超时会清理临时音频，气泡仍然显示；TTS 需要外网与可用的输出设备。
+Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用系统中文声音生成 WAV，
+经同一播放器播放，无须网络；需要已安装中文语音（本机为 Microsoft Huihui Desktop）。
+在线和本地阶段各受 `tts_timeout_seconds` 限制，因此故障时总等待可能达到两倍该值；
+气泡显示不等待语音合成。非 Windows 系统没有此兜底，仍报告在线服务错误。
