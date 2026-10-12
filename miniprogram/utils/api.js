@@ -50,6 +50,42 @@ function request(path, { method = 'GET', data } = {}) {
   });
 }
 
+/** wx.uploadFile 封装：multipart 上传（课表图片识别），自动带 X-API-Key，返回 Promise。 */
+function upload(path, { filePath, name = 'image', formData } = {}) {
+  return new Promise((resolve, reject) => {
+    wx.uploadFile({
+      url: baseUrl + path,
+      filePath,
+      name,
+      formData,
+      header: {
+        'X-API-Key': apiKey,
+      },
+      success(res) {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          try {
+            resolve(JSON.parse(res.data));
+          } catch (err) {
+            reject(new Error('响应解析失败'));
+          }
+          return;
+        }
+        let detail = '';
+        try {
+          const data = JSON.parse(res.data || '{}');
+          detail = typeof data.detail === 'string' ? data.detail : '';
+        } catch (err) {
+          /* 非 JSON 响应，保持通用错误提示 */
+        }
+        reject(new Error(`HTTP ${res.statusCode}${detail ? `：${detail}` : ''}`));
+      },
+      fail(err) {
+        reject(new Error(`上传失败：${err.errMsg || '请检查网络与后端服务'}`));
+      },
+    });
+  });
+}
+
 module.exports = {
   baseUrl,
 
@@ -58,6 +94,10 @@ module.exports = {
   createCourse: (data) => request('/api/courses', { method: 'POST', data }),
   updateCourse: (id, data) => request(`/api/courses/${id}`, { method: 'PUT', data }),
   deleteCourse: (id) => request(`/api/courses/${id}`, { method: 'DELETE' }),
+
+  // 课表图片识别导入
+  parseCourseImage: (filePath) => upload('/api/courses/parse-image', { filePath, name: 'image' }),
+  bulkCreateCourses: (courses) => request('/api/courses/bulk', { method: 'POST', data: { courses } }),
 
   // 日程/待办
   getTasks: () => request('/api/tasks'),
