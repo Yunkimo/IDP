@@ -49,3 +49,14 @@
   line-height: 2;
   margin: 8rpx 0;
 }
+
+/* 识别导入按钮：悬浮在添加按钮上方，绿色区分 */
+.fab-import {
+  bottom: 188rpx;
+  width: 88rpx;
+  height: 88rpx;
+  line-height: 88rpx;
+  font-size: 32rpx;
+  background: #2f9e44;
+  box-shadow: 0 8rpx 24rpx rgba(47, 158, 68, 0.4);
+}

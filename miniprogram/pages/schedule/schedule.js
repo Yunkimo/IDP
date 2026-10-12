@@ -73,6 +73,7 @@ Page({
     error: '',
     editing: false,
     form: { ...EMPTY_FORM },
+    pendingCourses: [],
   },
 
   onShow() {
@@ -125,6 +126,86 @@ Page({
 
   closeForm() {
     this.setData({ editing: false });
+  },
+
+  // 拍照/选图 → 压缩 → 上传识别 → 暂存待确认课程
+  async importImage() {
+    let tempFilePath = '';
+    try {
+      const res = await new Promise((resolve, reject) => {
+        wx.chooseMedia({
+          count: 1,
+          mediaType: ['image'],
+          sourceType: ['album', 'camera'],
+          success: resolve,
+          fail: reject,
+        });
+      });
+      tempFilePath = res.tempFiles[0].tempFilePath;
+    } catch (err) {
+      return; // 用户取消选择，静默返回
+    }
+    wx.showLoading({ title: '识别中', mask: true });
+    try {
+      // 压缩控制体积与分辨率：识别速度、流量与 10MB 上限三重保险
+      const compressed = await new Promise((resolve, reject) => {
+        wx.compressImage({
+          src: tempFilePath,
+          quality: 60,
+          compressedWidth: 1560,
+          success: resolve,
+          fail: reject,
+        });
+      });
+      const result = await api.parseCourseImage(compressed.tempFilePath);
+      if (!result.courses || result.courses.length === 0) {
+        wx.showToast({ title: '未能识别出课程', icon: 'none' });
+        return;
+      }
+      this.setData({ pendingCourses: result.courses });
+      this.confirmImport();
+    } catch (err) {
+      wx.showToast({ title: err.message, icon: 'none' });
+    } finally {
+      wx.hideLoading();
+    }
+  },
+
+  // 确认弹窗列出课程名+星期+时间（最多 6 行，超出省略）
+  confirmImport() {
+    const { pendingCourses } = this.data;
+    const lines = pendingCourses.slice(0, 6).map(
+      (c) => `${c.name}（${WEEKDAY_LABELS[c.day_of_week - 1]} ${c.start_time}-${c.end_time}）`
+    );
+    const extra = pendingCourses.length > 6 ? `\n……共 ${pendingCourses.length} 节` : '';
+    wx.showModal({
+      title: `确认导入 ${pendingCourses.length} 节课？`,
+      content: lines.join('\n') + extra,
+      confirmText: '导入',
+      success: async (res) => {
+        if (!res.confirm) {
+          this.setData({ pendingCourses: [] });
+          return;
+        }
+        wx.showLoading({ title: '导入中', mask: true });
+        try {
+          const result = await api.bulkCreateCourses(this.data.pendingCourses);
+          this.setData({ pendingCourses: [] });
+          await this.load();
+          const skipped = (result.skipped || []).length;
+          wx.showToast({
+            title: skipped
+              ? `已导入 ${result.created.length} 节，跳过 ${skipped} 节`
+              : `已导入 ${result.created.length} 节课`,
+            icon: 'none',
+          });
+        } catch (err) {
+          wx.showToast({ title: err.message, icon: 'none' });
+        } finally {
+          wx.hideLoading();
+        }
+      },
+    });
   },
 
   onFormInput(e) {

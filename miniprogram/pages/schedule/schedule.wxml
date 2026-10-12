@@ -23,6 +23,7 @@
     </view>
   </view>
 
+  <view class="fab fab-import" bindtap="importImage">识</view>
   <view class="fab" bindtap="openAdd">＋</view>
 
   <view wx:if="{{editing}}" class="mask">
