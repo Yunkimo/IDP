@@ -38,6 +38,9 @@ jobs:
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
 
+      - name: Reminder scheduling smoke test
+        run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
+
       - name: Commit checks and secret scan
         working-directory: .
         run: pre-commit run --all-files

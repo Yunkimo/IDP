@@ -2,7 +2,9 @@
 
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from .reminder_time import normalize_reminder_time
 
 
 class CourseIn(BaseModel):
@@ -45,6 +47,12 @@ class ReminderIn(BaseModel):
     channel: Literal["both", "pc", "phone"] = "both"
     task_id: int | None = None
 
+    @field_validator("remind_at")
+    @classmethod
+    def validate_time(cls, value: str) -> str:
+        """校验并统一提醒时间。"""
+        return normalize_reminder_time(value)
+
 
 class ReminderUpdate(BaseModel):
     title: str | None = None
@@ -53,3 +61,13 @@ class ReminderUpdate(BaseModel):
     channel: Literal["both", "pc", "phone"] | None = None
     done: bool | None = None
     task_id: int | None = None
+
+    @model_validator(mode="after")
+    def validate_update(self) -> "ReminderUpdate":
+        """拒绝不可空字段的显式 null，仅允许缺省表示不修改。"""
+        for field in self.model_fields_set - {"task_id"}:
+            if getattr(self, field) is None:
+                raise ValueError(f"{field} 不能为 null")
+        if "remind_at" in self.model_fields_set:
+            self.remind_at = normalize_reminder_time(self.remind_at)
+        return self
