@@ -9,6 +9,7 @@ const EMPTY_FORM = {
   start_time: '08:00',
   end_time: '09:40',
   location: '',
+  teacher: '',
   weeksText: '',
 };
 
@@ -119,6 +120,7 @@ Page({
         start_time: c.start_time,
         end_time: c.end_time,
         location: c.location || '',
+        teacher: c.teacher || '',
         weeksText: weeksToText(c.weeks),
       },
     });
@@ -238,6 +240,7 @@ Page({
       start_time: form.start_time,
       end_time: form.end_time,
       location: form.location.trim(),
+      teacher: form.teacher.trim(),
       weeks,
     };
     wx.showLoading({ title: '保存中' });

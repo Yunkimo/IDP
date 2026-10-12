@@ -58,6 +58,7 @@ function upload(path, { filePath, name = 'image', formData } = {}) {
       filePath,
       name,
       formData,
+      timeout: 180000,
       header: {
         'X-API-Key': apiKey,
       },
