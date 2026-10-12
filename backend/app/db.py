@@ -117,6 +117,33 @@ def create_course(name, day_of_week, start_time, end_time, location="", weeks=No
     return _get_by_id("courses", new_id)
 
 
+def create_courses_bulk(courses: list[dict]) -> list[dict]:
+    """单事务批量插入课表；任一失败整体回滚（courses 已通过 CourseIn 校验）。"""
+    if not courses:
+        return []
+    with _conn() as conn:
+        ids: list[int] = []
+        for course in courses:
+            cur = conn.execute(
+                "INSERT INTO courses (name, day_of_week, start_time, end_time, location, weeks) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (
+                    course["name"],
+                    course["day_of_week"],
+                    course["start_time"],
+                    course["end_time"],
+                    course.get("location", ""),
+                    json.dumps(course.get("weeks") or [], ensure_ascii=False),
+                ),
+            )
+            ids.append(cur.lastrowid)
+        placeholders = ", ".join("?" for _ in ids)
+        rows = conn.execute(
+            f"SELECT * FROM courses WHERE id IN ({placeholders}) ORDER BY id", ids
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def update_course(course_id: int, fields: dict) -> dict | None:
     cols = {"name", "day_of_week", "start_time", "end_time", "location", "weeks"}
     return _apply_update("courses", cols, course_id, fields)
