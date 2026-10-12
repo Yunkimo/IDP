@@ -10,6 +10,8 @@ from .paths import app_dir
 
 # 项目根目录（pet/ 的上一级）
 BASE_DIR = app_dir()
+DEFAULT_TTS_VOICE = "zh-CN-XiaoxiaoNeural"
+DEFAULT_TTS_TIMEOUT_SECONDS = 30
 
 
 class Settings:
@@ -59,7 +61,15 @@ class Settings:
         self.live2d_model: str = data.get("live2d_model", "")
 
         self.whisper_model: str = data.get("whisper_model", "base")
-        self.tts_voice: str = data.get("tts_voice", "zh-CN-XiaoyouNeural")
+        self.tts_voice: str = data.get("tts_voice", DEFAULT_TTS_VOICE)
+        # 旧默认声音已不在服务声音列表中，仅迁移该旧值，保留其他自选声音。
+        if self.tts_voice == "zh-CN-XiaoyouNeural":
+            self.tts_voice = DEFAULT_TTS_VOICE
+        self.tts_timeout_seconds = float(
+            data.get("tts_timeout_seconds", DEFAULT_TTS_TIMEOUT_SECONDS)
+        )
+        if not 0 < self.tts_timeout_seconds <= 120:
+            raise ValueError("tts_timeout_seconds 必须大于 0 且不超过 120 秒")
         self.tts_rate: str = data.get("tts_rate", "+10%")
         self.tts_pitch: str = data.get("tts_pitch", "+20Hz")
         self.enable_voice: bool = bool(data.get("enable_voice", True))
