@@ -1,3 +1,33 @@
+/* 本周周次选择条 */
+.week-bar {
+  display: flex;
+  align-items: center;
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.week-label {
+  color: #57606f;
+  margin-right: 16rpx;
+}
+
+.week-value {
+  color: #4a90d9;
+  font-weight: 600;
+  padding: 4rpx 20rpx;
+  background: #eef4fb;
+  border-radius: 8rpx;
+}
+
+.week-hint {
+  margin-left: auto;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
 .course-name {
   font-size: 32rpx;
   font-weight: 600;
