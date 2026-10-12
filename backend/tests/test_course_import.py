@@ -15,6 +15,7 @@ VALID_COURSE = {
     "start_time": "08:00",
     "end_time": "09:40",
     "location": "A101",
+    "teacher": "王老师",
     "weeks": [1, 2, 3],
 }
 
@@ -110,6 +111,7 @@ def test_bulk_creates_valid_skips_invalid(client):
     body = response.json()
     assert len(body["created"]) == 1
     assert body["created"][0]["weeks"] == "[1, 2, 3]"
+    assert body["created"][0]["teacher"] == "王老师"
     assert len(body["skipped"]) == 2
     assert body["skipped"][0]["index"] == 1
     assert "reason" in body["skipped"][0]

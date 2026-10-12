@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS courses (
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
     location TEXT NOT NULL DEFAULT '',
+    teacher TEXT NOT NULL DEFAULT '',
     weeks TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS tasks (
@@ -59,9 +60,12 @@ def _conn():
 
 
 def init_db() -> None:
-    """建表（幂等）。"""
+    """建表（幂等）；对旧库补充新增列（teacher）。"""
     with _conn() as conn:
         conn.executescript(_SCHEMA)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(courses)")}
+        if "teacher" not in columns:
+            conn.execute("ALTER TABLE courses ADD COLUMN teacher TEXT NOT NULL DEFAULT ''")
 
 
 def _get_by_id(table: str, row_id: int) -> dict | None:
@@ -99,17 +103,20 @@ def list_courses() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def create_course(name, day_of_week, start_time, end_time, location="", weeks=None) -> dict:
+def create_course(
+    name, day_of_week, start_time, end_time, location="", teacher="", weeks=None
+) -> dict:
     with _conn() as conn:
         cur = conn.execute(
-            "INSERT INTO courses (name, day_of_week, start_time, end_time, location, weeks) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO courses (name, day_of_week, start_time, end_time, location, teacher, weeks) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 name,
                 day_of_week,
                 start_time,
                 end_time,
                 location,
+                teacher,
                 json.dumps(weeks or [], ensure_ascii=False),
             ),
         )
@@ -125,14 +132,15 @@ def create_courses_bulk(courses: list[dict]) -> list[dict]:
         ids: list[int] = []
         for course in courses:
             cur = conn.execute(
-                "INSERT INTO courses (name, day_of_week, start_time, end_time, location, weeks) "
-                "VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO courses (name, day_of_week, start_time, end_time, location, teacher, weeks) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 (
                     course["name"],
                     course["day_of_week"],
                     course["start_time"],
                     course["end_time"],
                     course.get("location", ""),
+                    course.get("teacher", ""),
                     json.dumps(course.get("weeks") or [], ensure_ascii=False),
                 ),
             )
@@ -145,7 +153,7 @@ def create_courses_bulk(courses: list[dict]) -> list[dict]:
 
 
 def update_course(course_id: int, fields: dict) -> dict | None:
-    cols = {"name", "day_of_week", "start_time", "end_time", "location", "weeks"}
+    cols = {"name", "day_of_week", "start_time", "end_time", "location", "teacher", "weeks"}
     return _apply_update("courses", cols, course_id, fields)
 
 
