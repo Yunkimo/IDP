@@ -1,7 +1,8 @@
-"""以真实 PetWindow、WS 和临时后端验收到期提醒；不调用聊天或语音服务。"""
+"""真实桌宠提醒验收：批量绘制、重连/故障去重，可选真实语音。"""
 
 import argparse
 import json
+import math
 import os
 import secrets
 import socket
@@ -60,6 +61,22 @@ def run(args) -> dict:
                 " return original(*args)\n"
                 "reminder_store.finish = finish\n"
             ) + server_code
+        if args.reconnect:
+            # 测试进程在首次真实广播后关闭连接；不改变业务发送或去重实现。
+            server_code = (
+                "from app.push_service import PushService\n"
+                "broadcast = PushService.broadcast\n"
+                "disconnected = False\n"
+                "async def reconnect_once(self, event):\n"
+                " global disconnected\n"
+                " sent = await broadcast(self, event)\n"
+                " if sent and not disconnected:\n"
+                "  disconnected = True\n"
+                "  for ws in tuple(self._connections):\n"
+                "   await ws.close(code=1012)\n"
+                " return sent\n"
+                "PushService.broadcast = reconnect_once\n"
+            ) + server_code
         with tempfile.TemporaryFile() as log:
             server = subprocess.Popen(
                 [str(ROOT / "backend/.venv/Scripts/python.exe"), "-c", server_code],
@@ -86,7 +103,7 @@ def run(args) -> dict:
                 settings.llm_api_key = ""
                 settings.persist_history = False
                 settings.history_path = Path(directory) / "history.json"
-                settings.enable_voice = False
+                settings.enable_voice = args.voice
                 settings.health_enabled = False
                 settings.image_engine, settings.frames = "sprite", []
                 settings.bubble_timeout_ms = 60000
@@ -107,11 +124,19 @@ def run(args) -> dict:
                     "interval_seconds": args.interval,
                     "lead_seconds": args.lead,
                     "fault_after_first_send": args.fail_first_commit,
-                    "voice_enabled": False,
+                    "voice_enabled": args.voice,
+                    "reconnect": args.reconnect,
+                    "samples": args.samples,
                     "capture_window": args.capture_window,
                     "measurement": "real WsListener -> PetWindow -> REST -> bubble paint callback",
                     "events": [],
                     "paints": [],
+                    "notifications": [],
+                    "voice_requests": [],
+                    "playback_states": [],
+                    "media_status": [],
+                    "errors": [],
+                    "rows": [],
                 }
 
                 def save():
@@ -124,55 +149,120 @@ def run(args) -> dict:
                     if event.get("type") != "reminder.due":
                         return
                     report["events"].append(
-                        {"event_id": event["event_id"], "handled_epoch": time.time()}
+                        {
+                            "event_id": event["event_id"],
+                            "id": event["data"]["id"],
+                            "handled_epoch": time.time(),
+                        }
                     )
                     save()
 
+                remind = window._remind_health
+                speak = window._speak
+
+                def observe_notification(text):
+                    report["notifications"].append({"text": text, "epoch": time.time()})
+                    remind(text)
+                    save()
+
+                def observe_voice(text):
+                    report["voice_requests"].append({"text": text, "epoch": time.time()})
+                    speak(text)
+                    window.tts_worker.error.connect(
+                        lambda error: record("errors", "tts:" + type(error).__name__)
+                    )
+
+                def record(key, value):
+                    report[key].append({"value": str(value), "epoch": time.time()})
+                    save()
+
+                # 仅旁路记录，调用真实业务方法；不替换合成器或播放器。
+                window._remind_health = observe_notification
+                window._speak = observe_voice
+                window.player.playbackStateChanged.connect(
+                    lambda state: record("playback_states", state.name)
+                )
+                window.player.mediaStatusChanged.connect(
+                    lambda status: record("media_status", status.name)
+                )
+                window.player.errorOccurred.connect(lambda error: record("errors", error.name))
+
                 class PaintObserver(QObject):
                     def eventFilter(self, obj, event):  # noqa: N802
-                        if event.type() == QEvent.Type.Paint and len(report["paints"]) < len(
-                            report["events"]
-                        ):
-                            index = len(report["events"])
-                            QTimer.singleShot(0, lambda: painted(index))
+                        if event.type() == QEvent.Type.Paint:
+                            text = window.bubble._text
+                            QTimer.singleShot(0, lambda: painted(text))
                         return False
 
-                def painted(index):
-                    if len(report["paints"]) >= index:
+                def painted(text):
+                    row = next((r for r in report["rows"] if r["expected_text"] == text), None)
+                    if row is None or row.get("painted_epoch"):
                         return
                     now = time.time()
+                    row["painted_epoch"] = now
                     report["paints"].append(
                         {
-                            "event_number": index,
+                            "reminder_id": row["id"],
                             "painted_epoch": now,
-                            "from_created_seconds": now - report["created_epoch"],
-                            "from_due_seconds": now - report["due_epoch"],
+                            "from_created_seconds": now - row["created_epoch"],
+                            "from_due_seconds": now - row["due_epoch"],
                             "visible": window.bubble.isVisible(),
-                            "text": window.bubble._text,
+                            "text": text,
                         }
                     )
-                    report["reminder"] = window.backend.list_reminders()[0]
                     save()
 
                 def create():
                     created = time.time()
-                    due = created + args.lead
-                    report.update(created_epoch=created, due_epoch=due)
-                    report["created_reminder"] = window.backend.create_reminder(
-                        "B2 验收提醒",
-                        datetime.fromtimestamp(due, timezone.utc).isoformat(),
-                        body="请确认桌宠已显示到期提醒",
-                        channel="pc",
-                    )
+                    for number in range(args.samples):
+                        due = created + args.lead + number * args.spacing
+                        title = f"B2 验收提醒 {number + 1}"
+                        body = "请确认桌宠已显示到期提醒"
+                        item = window.backend.create_reminder(
+                            title,
+                            datetime.fromtimestamp(due, timezone.utc).isoformat(),
+                            body=body,
+                            channel="pc",
+                        )
+                        report["rows"].append(
+                            {
+                                "id": item["id"],
+                                "created_epoch": created,
+                                "due_epoch": due,
+                                "expected_text": f"⏰ {title} {body}",
+                            }
+                        )
                     save()
 
                 def finish():
-                    report["reminder"] = window.backend.list_reminders()[0]
+                    report["reminders"] = window.backend.list_reminders()
                     report["duplicate_events"] = len(report["events"]) - len(
                         {event["event_id"] for event in report["events"]}
                     )
+                    delays = sorted(p["from_due_seconds"] for p in report["paints"])
+                    report["summary"] = {
+                        "received": len({e["id"] for e in report["events"]}),
+                        "displayed": len(delays),
+                        "notifications": len(report["notifications"]),
+                        "duplicates_suppressed": len(report["events"])
+                        - len(report["notifications"]),
+                        "done": sum(r["done"] for r in report["reminders"]),
+                        "within_limit": sum(0 <= d <= args.max_delay for d in delays),
+                        "max_delay_seconds": args.max_delay,
+                        "p50_seconds": delays[math.ceil(len(delays) * 0.50) - 1]
+                        if delays
+                        else None,
+                        "p95_seconds": delays[math.ceil(len(delays) * 0.95) - 1]
+                        if delays
+                        else None,
+                        "max_seconds": max(delays, default=None),
+                    }
                     report["completed"] = True
                     save()
+                    if window.tts_worker is not None and window.tts_worker.isRunning():
+                        # 只在测试收尾等待有超时的合成请求，避免销毁运行中的 QThread。
+                        window.tts_worker.wait(75000)
+                    window.player.stop()
                     window.close()
                     app.quit()
 
@@ -181,7 +271,10 @@ def run(args) -> dict:
                 window.ws.event.connect(received)
                 window.show()
                 QTimer.singleShot(2000, create)
-                QTimer.singleShot(int((2 + args.lead + args.interval + args.hold) * 1000), finish)
+                duration = (
+                    2 + args.lead + (args.samples - 1) * args.spacing + args.interval + args.hold
+                )
+                QTimer.singleShot(int(duration * 1000), finish)
                 app.exec()
             finally:
                 server.terminate()
@@ -202,9 +295,26 @@ if __name__ == "__main__":
     parser.add_argument("--hold", type=float, default=20)
     parser.add_argument("--fail-first-commit", action="store_true")
     parser.add_argument("--capture-window", action="store_true")
+    parser.add_argument("--reconnect", action="store_true")
+    parser.add_argument("--voice", action="store_true")
+    parser.add_argument("--samples", type=int, default=1)
+    parser.add_argument("--spacing", type=float, default=2)
+    parser.add_argument("--max-delay", type=float, default=5)
     parser.add_argument("--output", type=Path, required=True)
     options = parser.parse_args()
-    if options.interval <= 0 or options.lead <= 0 or options.hold < 5:
-        parser.error("interval/lead must be positive and hold must be at least five seconds")
+    seconds = (options.interval, options.lead, options.hold, options.spacing, options.max_delay)
+    if not all(math.isfinite(n) and n > 0 for n in seconds) or options.hold < 5:
+        parser.error("seconds must be positive finite values; hold must be at least five seconds")
+    if not 1 <= options.samples <= 100 or (options.voice and options.samples != 1):
+        parser.error("samples must be 1..100; real voice acceptance uses one sample")
     result = run(options)
-    assert result["events"] and result["paints"] and result["reminder"]["done"] == 1
+    summary = result["summary"]
+    assert summary["displayed"] == summary["notifications"] == summary["done"] == options.samples
+    assert summary["within_limit"] == options.samples
+    if options.fail_first_commit:
+        assert result["duplicate_events"] >= 1 and summary["duplicates_suppressed"] >= 1
+    if options.voice:
+        assert len(result["voice_requests"]) == 1
+        assert any(s["value"] == "PlayingState" for s in result["playback_states"])
+        assert any(s["value"] == "EndOfMedia" for s in result["media_status"])
+        assert not result["errors"]
