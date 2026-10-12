@@ -23,6 +23,10 @@ class Settings:
         self.llm_base_url: str = os.getenv("LLM_BASE_URL", "https://api.deepseek.com").strip()
         self.llm_model: str = os.getenv("LLM_MODEL", "deepseek-chat").strip()
 
+        # —— 后端服务配置（API_TOKEN 是后端侧密钥，桌宠端填同一值以通过 X-API-Key 鉴权）——
+        self.backend_url: str = os.getenv("BACKEND_URL", "http://127.0.0.1:8001").strip()
+        self.api_token: str = os.getenv("API_TOKEN", "").strip()
+
         # —— 来自 config.json 的非敏感配置 ——
         self._load_json()
 
@@ -40,6 +44,10 @@ class Settings:
         self.personality: str = persona.get("personality", "活泼可爱")
         self.tone: str = persona.get("tone", "口语化、简短俏皮")
         self.personas: dict[str, dict] = data.get("personas", {})
+
+        # LLM 生成参数（非敏感，默认保持现有行为）
+        self.llm_temperature: float = float(data.get("llm_temperature", 0.9))
+        self.llm_max_tokens: int = int(data.get("llm_max_tokens", 1024))
 
         self.frames: list[str] = data.get("frames", [])
         self.sprite_size: int = int(data.get("sprite_size", 180))
@@ -62,6 +70,10 @@ class Settings:
         self.max_record_secs: float = float(data.get("max_record_secs", 15))
         self.bubble_timeout_ms: int = int(data.get("bubble_timeout_ms", 8000))
         self.persist_history: bool = bool(data.get("persist_history", True))
+
+        # 健康关怀：久坐检测开关与提醒间隔（分钟）
+        self.health_enabled: bool = bool(data.get("health_enabled", True))
+        self.sedentary_interval_min: int = int(data.get("sedentary_interval_min", 45))
 
         # 路径统一解析为绝对路径
         self.assets_dir: Path = BASE_DIR / data.get("assets_dir", "assets")
@@ -96,6 +108,17 @@ class Settings:
         """更新语音快捷键并写回 config.json，使设置重启后仍然生效。"""
         self.voice_hotkey = hotkey
         self._save_json(voice_hotkey=hotkey)
+
+    def update_health(self, enabled: bool | None = None, sedentary_min: int | None = None) -> None:
+        """更新健康关怀配置并写回 config.json（复用 _save_json）。"""
+        updates: dict[str, object] = {}
+        if enabled is not None:
+            self.health_enabled = bool(enabled)
+            updates["health_enabled"] = self.health_enabled
+        if sedentary_min is not None:
+            self.sedentary_interval_min = int(sedentary_min)
+            updates["sedentary_interval_min"] = self.sedentary_interval_min
+        self._save_json(**updates)
 
     def switch_persona(self, name: str) -> bool:
         """切换到指定人设（从 personas 预设读取），写回 config.json 并返回是否成功。"""

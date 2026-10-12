@@ -26,5 +26,9 @@
   "bubble_timeout_ms": 8000,
   "persist_history": true,
   "history_path": "data/history.json",
-  "assets_dir": "assets"
+  "assets_dir": "assets",
+  "health_enabled": true,
+  "sedentary_interval_min": 45,
+  "llm_temperature": 0.9,
+  "llm_max_tokens": 1024
 }

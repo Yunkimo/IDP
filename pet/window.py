@@ -10,14 +10,17 @@ from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 
 from .asr import ASREngine
 from .avatar import create_avatar
+from .backend_client import BackendClient, WsListener, build_ws_url
 from .bubble import SpeechBubble
 from .config import Settings
+from .health import HealthMonitor
 from .image_utils import normalize_image
 from .input_box import ChatInput
 from .llm import LLMClient
 from .memory import Memory
 from .persona import build_system_prompt
 from .providers import create_chat_provider
+from .tools import build_tools
 from .tts import TTSEngine
 from .worker import ASRWorker, ChatWorker, TTSWorker
 
@@ -58,6 +61,17 @@ class PetWindow(QWidget):
         self.asr_engine = ASREngine(settings.whisper_model)
         self.tts_engine = TTSEngine(settings.tts_voice, settings.tts_rate, settings.tts_pitch)
 
+        # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
+        self.backend = BackendClient(settings.backend_url, settings.api_token)
+        self.tools = build_tools(self.backend)
+
+        # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
+        self.ws = WsListener(build_ws_url(settings.backend_url, settings.api_token), parent=self)
+        self.ws.event.connect(self._on_backend_event)
+        self.ws.error.connect(lambda e: print(f"[ws] {e}"))
+        if settings.api_token:
+            self.ws.start()
+
         # —— 记忆 ——
         self.memory = Memory(settings.history_path, settings.max_history, settings.persist_history)
         self.memory.set_system(build_system_prompt(settings))
@@ -67,6 +81,7 @@ class PetWindow(QWidget):
         self._size_and_position()
         self._init_audio()
         self._init_hotkey()
+        self._init_health()
 
         # 拖拽/点击状态
         self._press_pos = None
@@ -77,6 +92,7 @@ class PetWindow(QWidget):
         self.asr_worker: ASRWorker | None = None
         self.tts_worker: TTSWorker | None = None
         self._tts_tmp: str | None = None
+        self._tool_status_active = False
 
     # ---------- 初始化 ----------
     def _init_window(self) -> None:
@@ -214,6 +230,9 @@ class PetWindow(QWidget):
         hotkey_act = menu.addAction("设置语音快捷键…")
         hotkey_act.triggered.connect(self._set_voice_hotkey)
 
+        backend_act = menu.addAction("测试后端连接")
+        backend_act.triggered.connect(self._debug_backend)
+
         quit_act = menu.addAction("退出")
         quit_act.triggered.connect(self.close)
 
@@ -323,11 +342,25 @@ class PetWindow(QWidget):
         if self.chat_worker is not None and self.chat_worker.isRunning():
             return
         self.input.set_busy(True)
-        self.chat_worker = ChatWorker(self.llm, messages, parent=self)
-        self.chat_worker.chunk.connect(self.bubble.append_chunk)
+        self._tool_status_active = False
+        self.chat_worker = ChatWorker(self.llm, messages, tools=self.tools, parent=self)
+        self.chat_worker.chunk.connect(self._on_chunk)
+        self.chat_worker.status.connect(self._on_tool_status)
         self.chat_worker.done.connect(self._on_chat_done)
         self.chat_worker.error.connect(self._on_chat_error)
         self.chat_worker.start()
+
+    def _on_chunk(self, chunk: str) -> None:
+        """收到流式增量；若此前显示过工具状态，先清空再开始打字机。"""
+        if self._tool_status_active:
+            self.bubble.clear()
+            self._tool_status_active = False
+        self.bubble.append_chunk(chunk)
+
+    def _on_tool_status(self, text: str) -> None:
+        """工具执行中：在气泡显示进行状态（首块回复到达时被替换）。"""
+        self._tool_status_active = True
+        self.bubble.set_text(text)
 
     def _on_chat_done(self, text: str) -> None:
         self.input.set_busy(False)
@@ -430,6 +463,45 @@ class PetWindow(QWidget):
         """松开快捷键：停止录音并识别。"""
         self._stop_recording()
 
+    # ---------- 健康关怀 ----------
+    def _init_health(self) -> None:
+        """启动久坐检测（按 config.json 的 health_enabled 开关）。"""
+        self.health = HealthMonitor(self.settings, parent=self)
+        self.health.sedentary_due.connect(self._on_sedentary_due)
+        self.health.start()
+
+    def _on_sedentary_due(self) -> None:
+        self._remind_health("坐太久啦，起来喝口水、活动一下吧～")
+
+    def _remind_health(self, text: str) -> None:
+        self.show_hint(text)
+        self.avatar.react("poke")
+        if self.settings.enable_voice:
+            self._speak(text)
+
+    # ---------- 后端实时事件 ----------
+    def _on_backend_event(self, event: dict) -> None:
+        """处理后端 WebSocket 广播事件（未知类型按契约忽略）。"""
+        etype = event.get("type")
+        if etype == "reminder.due":
+            reminder_id = (event.get("data") or {}).get("id")
+            self._remind_health(self._reminder_text(reminder_id))
+        elif etype == "task.created":
+            self.show_hint("收到新日程啦，需要我帮你看看吗～")
+        elif etype == "course.created":
+            self.show_hint("课表有更新啦～")
+
+    def _reminder_text(self, reminder_id) -> str:
+        """按事件里的资源 ID 用 REST 校正提醒正文；失败给兜底文案。"""
+        try:
+            for r in self.backend.list_reminders():
+                if r.get("id") == reminder_id:
+                    text = f"⏰ {r.get('title') or ''} {r.get('body') or ''}".strip()
+                    return text or "有提醒到啦～"
+        except Exception:  # noqa: BLE001 - 拉取失败用兜底文案
+            pass
+        return "有提醒到啦～"
+
     def _set_voice_hotkey(self) -> None:
         """弹出设置语音快捷键对话框，保存后重启监听。"""
         from .hotkey_dialog import HotkeyDialog
@@ -455,9 +527,22 @@ class PetWindow(QWidget):
     def show_hint(self, text: str) -> None:
         self.bubble.set_text(text)
 
+    def _debug_backend(self) -> None:
+        """临时调试入口：拉取后端课表/日程，在气泡显示（A1 验收）。"""
+        try:
+            courses = self.backend.list_courses()
+            tasks = self.backend.list_tasks()
+        except Exception as exc:  # noqa: BLE001 - 调试入口，直接反馈给用户
+            self.show_hint(f"后端不可用：{exc}")
+            return
+        self.show_hint(f"后端正常～课表 {len(courses)} 条、日程 {len(tasks)} 条")
+
     def closeEvent(self, event) -> None:  # noqa: N802
         if self.hotkey is not None:
             self.hotkey.stop()
+        self.health.stop()
+        self.ws.request_stop()
+        self.ws.wait(2000)
         self.memory.save()
         self._cleanup_tts_tmp()
         super().closeEvent(event)

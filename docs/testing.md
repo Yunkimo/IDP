@@ -24,13 +24,22 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述两步。
 
 | 文件 | 覆盖点 | 用例数 |
 |---|---|---|
-| `test_config.py` | 配置默认值、环境变量覆盖、config.json 字段 | 3 |
-| `test_memory.py` | 增删顺序、轮数裁剪、持久化往返 | 3 |
+| `test_config.py` | 配置默认值、环境变量覆盖、config.json 字段、健康项、LLM 生成参数、更新/人设方法 | 6 |
+| `test_memory.py` | 增删顺序、轮数裁剪、持久化往返 | 4 |
 | `test_persona.py` | 人设提示词包含名字/性格/语气 | 1 |
-| `test_providers.py` | 流式拼接与回调、异常包装为 LLMError、工厂类型 | 3 |
+| `test_providers.py` | 流式拼接与回调、异常包装、tool_calls 回传（空/单/多条）、生成参数、工厂、LLM 门面 | 10 |
 | `test_bubble.py` | 折行纯函数（空/超长/换行）、气泡流式追加 | 4 |
+| `test_agent.py` | 工具循环次数上限、最终流式回复、未知工具回传 | 3 |
+| `test_backend_client.py` | REST 封装、鉴权头、绕过系统代理、非 JSON 2xx、CRUD、ws URL/事件解析 | 9 |
+| `test_tools.py` | 工具注册表 schema、格式化缺字段、创建/更新/删除、联网失败、自然时间规整 | 14 |
+| `test_timeparse.py` | 「今天/明天/后天 + 时刻」→ ISO、ISO/未知输入透传 | 6 |
+| `test_health.py` | 久坐阈值、离座清零、周期重复、在座判定 | 6 |
+| `test_ws_listener.py` | WebSocket 消息解析、重连、事件分发 | 6 |
+| `test_hotkey.py` | 快捷键注册与触发 | 8 |
+| `test_image_utils.py` | 图片缩放/裁剪纯函数 | 5 |
+| `test_live2d.py` | Live2D 视图边界 | 2 |
 
-合计 **14 个用例**，全部通过。
+合计 **84 个用例**，全部通过。
 
 ## 4. 实验环境
 
@@ -44,6 +53,9 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述两步。
 ## 5. 结果
 
 ```
-14 passed in 2.09s
-ruff check . → All checks passed!
+84 passed（无失败）
+ruff check pet/ tests/ → All checks passed!
+行覆盖率 37%（pet/ 共 1628 语句、595 覆盖）：providers 97%、memory 93%、agent 91%、
+backend_client 92%、tools 92%、llm 89%、config 82%、timeparse 100%、image_utils 100%；
+window/sprite/worker/tts/对话框等 Qt 界面层为 0%，按 §1 策略由 smoke 脚本 + 人工验证覆盖，不做无头 UI 自动化。
 ```
