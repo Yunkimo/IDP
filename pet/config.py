@@ -71,6 +71,7 @@ class Settings:
         if not 0 < self.tts_timeout_seconds <= 120:
             raise ValueError("tts_timeout_seconds 必须大于 0 且不超过 120 秒")
         self.tts_rate: str = data.get("tts_rate", "+10%")
+        self.tts_windows_fallback = bool(data.get("tts_windows_fallback", True))
         self.tts_pitch: str = data.get("tts_pitch", "+20Hz")
         self.enable_voice: bool = bool(data.get("enable_voice", True))
         # 全局语音快捷键：长按开始录音、松开停止并识别（默认 Ctrl+T）
