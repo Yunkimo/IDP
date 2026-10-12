@@ -4,5 +4,5 @@ module.exports = {
   // 后端地址：开发期可用局域网 IP 或内网穿透地址（见 docs/deploy.md，任务 C4）
   baseUrl: 'http://127.0.0.1:8001',
   // 与 backend/.env 的 API_TOKEN 保持一致；请求时经 X-API-Key 请求头发送，由后端校验
-  apiKey: '填入 backend/.env 的 API_TOKEN',
+  apiKey: 'change-me-to-a-random-string',
 };
