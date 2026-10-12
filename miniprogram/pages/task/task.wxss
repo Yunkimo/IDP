@@ -1,0 +1,52 @@
+.task-card {
+  display: flex;
+  align-items: center;
+}
+
+.task-check {
+  margin-right: 16rpx;
+}
+
+.task-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-title {
+  font-size: 30rpx;
+}
+
+.task-title.finished {
+  color: #a4b0be;
+  text-decoration: line-through;
+}
+
+.task-note {
+  margin-top: 4rpx;
+  color: #747d8c;
+  font-size: 24rpx;
+}
+
+.task-meta {
+  margin-top: 4rpx;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+.badge-overdue {
+  margin-right: 8rpx;
+  color: #e74c3c;
+}
+
+.task-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16rpx;
+}
+
+.mini {
+  font-size: 24rpx;
+  padding: 0 24rpx;
+  line-height: 2;
+  margin: 8rpx 0;
+}
