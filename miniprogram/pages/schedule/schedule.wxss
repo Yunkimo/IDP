@@ -1,0 +1,51 @@
+.day-group {
+  margin-top: 8rpx;
+}
+
+.day-title {
+  margin: 24rpx 24rpx 0;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #57606f;
+}
+
+.day-count {
+  font-size: 24rpx;
+  font-weight: 400;
+  color: #a4b0be;
+}
+
+.course-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.course-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.course-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.course-meta {
+  margin-top: 8rpx;
+  color: #747d8c;
+  font-size: 26rpx;
+}
+
+.course-actions {
+  display: flex;
+  flex-direction: column;
+  margin-left: 16rpx;
+}
+
+.mini {
+  font-size: 24rpx;
+  padding: 0 24rpx;
+  line-height: 2;
+  margin: 8rpx 0;
+}

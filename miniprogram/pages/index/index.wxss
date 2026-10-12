@@ -1,0 +1,37 @@
+.course-name {
+  font-size: 32rpx;
+  font-weight: 600;
+}
+
+.course-meta {
+  margin-top: 8rpx;
+  color: #747d8c;
+  font-size: 26rpx;
+}
+
+.task-card {
+  display: flex;
+  align-items: center;
+}
+
+.task-check {
+  margin-right: 16rpx;
+}
+
+.task-body {
+  flex: 1;
+}
+
+.task-title {
+  font-size: 30rpx;
+}
+
+.task-meta {
+  margin-top: 4rpx;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+.task-meta.overdue {
+  color: #e74c3c;
+}
