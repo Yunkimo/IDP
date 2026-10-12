@@ -4,5 +4,6 @@ module.exports = {
   // 后端地址：开发期可用局域网 IP 或内网穿透地址（见 docs/deploy.md，任务 C4）
   baseUrl: 'http://127.0.0.1:8001',
   // 与 backend/.env 的 API_TOKEN 保持一致；请求时经 X-API-Key 请求头发送，由后端校验
-  apiKey: 'change-me-to-a-random-string',
+  // 行尾 pragma 是 detect-secrets 密钥扫描的误报豁免标记（本行仅为示例占位，非真实密钥）
+  apiKey: 'change-me-to-a-random-string', // pragma: allowlist secret
 };
