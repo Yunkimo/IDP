@@ -50,6 +50,45 @@
   margin: 8rpx 0;
 }
 
+/* 本周周次选择条 */
+.week-bar {
+  display: flex;
+  align-items: center;
+  margin: 16rpx 24rpx 0;
+  padding: 16rpx 24rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  box-shadow: 0 2rpx 8rpx rgba(0, 0, 0, 0.04);
+}
+
+.week-label {
+  color: #57606f;
+  margin-right: 16rpx;
+}
+
+.week-value {
+  color: #4a90d9;
+  font-weight: 600;
+  padding: 4rpx 20rpx;
+  background: #eef4fb;
+  border-radius: 8rpx;
+}
+
+.week-hint {
+  margin-left: auto;
+  color: #a4b0be;
+  font-size: 24rpx;
+}
+
+/* 本周不上课的课程置灰 */
+.course-card.inactive {
+  opacity: 0.5;
+}
+
+.inactive-tag {
+  color: #e67e22;
+}
+
 /* 识别导入按钮：悬浮在添加按钮上方，绿色区分 */
 .fab-import {
   bottom: 188rpx;

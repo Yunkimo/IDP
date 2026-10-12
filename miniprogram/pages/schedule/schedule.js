@@ -1,6 +1,13 @@
 // 课表页：按星期分组展示课程，支持添加/编辑/删除，数据同步到后端 SQLite。
+// 非本周课程置灰并标注「本周不上」（weeks 不含当前周；无周次 = 全周）。
 const api = require('../../utils/api');
-const { WEEKDAY_LABELS } = require('../../utils/datetime');
+const {
+  WEEKDAY_LABELS,
+  WEEK_OPTIONS,
+  getCurrentWeek,
+  setCurrentWeek,
+  isActiveWeek,
+} = require('../../utils/datetime');
 
 const EMPTY_FORM = {
   id: null,
@@ -69,6 +76,8 @@ function parseWeeks(text) {
 Page({
   data: {
     weekOptions: WEEKDAY_LABELS,
+    weekPickerOptions: WEEK_OPTIONS,
+    currentWeek: 6,
     weekDays: [],
     loading: false,
     error: '',
@@ -78,6 +87,15 @@ Page({
   },
 
   onShow() {
+    this.setData({ currentWeek: getCurrentWeek() });
+    this.load();
+  },
+
+  // 切换本周周次：保存后重新标注各课程是否本周上课
+  onWeekPick(e) {
+    const week = Number(e.detail.value) + 1;
+    setCurrentWeek(week);
+    this.setData({ currentWeek: week });
     this.load();
   },
 
@@ -95,7 +113,11 @@ Page({
         courses: courses
           .filter((c) => c.day_of_week === i + 1)
           .sort((a, b) => a.start_time.localeCompare(b.start_time))
-          .map((c) => ({ ...c, weeksText: weeksToText(c.weeks) || '全周' })),
+          .map((c) => ({
+            ...c,
+            weeksText: weeksToText(c.weeks) || '全周',
+            active: isActiveWeek(c, this.data.currentWeek),
+          })),
       }));
       this.setData({ weekDays });
     } catch (err) {
@@ -201,6 +223,15 @@ Page({
               : `已导入 ${result.created.length} 节课`,
             icon: 'none',
           });
+          // 首次导入提示设置本周周次：今日页/本页按周次过滤显示
+          if (!wx.getStorageSync('current_week')) {
+            wx.showModal({
+              title: '设置本周周次',
+              content: '导入完成！请点顶部「第X周」选择当前是第几周，课表将按周次过滤显示。',
+              showCancel: false,
+              confirmText: '知道了',
+            });
+          }
         } catch (err) {
           wx.showToast({ title: err.message, icon: 'none' });
         } finally {

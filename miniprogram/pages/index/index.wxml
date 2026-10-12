@@ -1,4 +1,12 @@
 <view class="page">
+  <view class="week-bar">
+    <text class="week-label">本周</text>
+    <picker mode="selector" range="{{weekOptions}}" value="{{currentWeek - 1}}" bindchange="onWeekPick">
+      <view class="week-value">第{{currentWeek}}周 ▾</view>
+    </picker>
+    <text class="week-hint">课程按周次过滤</text>
+  </view>
+
   <view wx:if="{{error}}" class="error-banner">
     <text>{{error}}</text>
     <text class="retry" bindtap="retry">重试</text>
