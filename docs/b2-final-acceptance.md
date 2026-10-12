@@ -48,6 +48,9 @@
    最终组 30/30 通过。这说明窗口遮挡/桌面状态影响视觉验收，不能只按 WS 收包宣称显示。
 4. 在线语音失败记录保留在 [首次恢复语音组](evidence/b2/attempt-parallel-final-reconnect-voice.json)，
    修复后实际走 Windows 中文兜底，不把旧失败重命名为成功。
+5. [首次修复 CI](https://github.com/Yunkimo/IDP/actions/runs/38222190943) 的两个后端任务成功，
+   桌宠测试收集时因缺少 libpulse.so.0 失败；补上 Linux 的 libpulse0 系统依赖，保留实际窗口入口测试。
+   最终远端状态以 PR checks 为准，不能把该失败的运行记录写成成功。
 
 ## 复现与边界
 
