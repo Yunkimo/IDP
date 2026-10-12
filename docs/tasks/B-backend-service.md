@@ -51,7 +51,9 @@
 - 新建 `app/scheduler.py`：asyncio 后台循环，每 30s 查 `done=0` 且 `remind_at` 已到期的 reminders → 调 `push_service.broadcast` 发 `reminder.due` → 标记 `done=1`。
 - 在 `main.py` lifespan 启动 / 停止该循环。
 - 依赖：B1。
-- 验收：加一条 `remind_at=now+60s` 的提醒，60s 内收到广播且该提醒标记为 done。
+- 验收（2026-10-12 按用户授权统一）：联调配置扫描 1 秒，加 `remind_at=now+60s` 提醒，
+  到期后 5 秒内显示气泡且该提醒标记为 done；30 条样本均限时显示，故障重试不会重复通知。
+  默认 30 秒扫描单独报告延迟，不套用五秒目标。原“创建后 60 秒内”的冲突及失败数据保留在 `docs/b2-acceptance.md`。
 
 ### B3. 微信订阅消息
 - 新建 `app/routers/wechat.py`：`POST /api/wechat/login`（`code`→`openid`）、`POST /api/wechat/subscribe`（记录订阅授权）。

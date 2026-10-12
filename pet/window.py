@@ -13,6 +13,7 @@ from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
 from .bubble import SpeechBubble
 from .config import Settings
+from .event_cache import RecentEvents
 from .health import HealthMonitor
 from .image_utils import normalize_image
 from .input_box import ChatInput
@@ -59,13 +60,20 @@ class PetWindow(QWidget):
         # —— 引擎 ——
         self.llm = LLMClient(create_chat_provider(settings))
         self.asr_engine = ASREngine(settings.whisper_model)
-        self.tts_engine = TTSEngine(settings.tts_voice, settings.tts_rate, settings.tts_pitch)
+        self.tts_engine = TTSEngine(
+            settings.tts_voice,
+            settings.tts_rate,
+            settings.tts_pitch,
+            settings.tts_timeout_seconds,
+            settings.tts_windows_fallback,
+        )
 
         # —— 后端客户端（惰性：不配置后端也不影响纯聊天）——
         self.backend = BackendClient(settings.backend_url, settings.api_token)
         self.tools = build_tools(self.backend)
 
         # —— WebSocket 实时接收（未配置 API_TOKEN 时不启动）——
+        self._recent_events = RecentEvents()
         self.ws = WsListener(build_ws_url(settings.backend_url, settings.api_token), parent=self)
         self.ws.event.connect(self._on_backend_event)
         self.ws.error.connect(lambda e: print(f"[ws] {e}"))
@@ -398,6 +406,7 @@ class PetWindow(QWidget):
 
     def _on_media_status(self, status) -> None:
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
+            self.player.setSource(QUrl())
             self._cleanup_tts_tmp()
 
     def _cleanup_tts_tmp(self) -> None:
@@ -481,15 +490,29 @@ class PetWindow(QWidget):
 
     # ---------- 后端实时事件 ----------
     def _on_backend_event(self, event: dict) -> None:
-        """处理后端 WebSocket 广播事件（未知类型按契约忽略）。"""
+        """验证信封并去重；缓存跟随窗口，断线重连不重复显示或播报。"""
         etype = event.get("type")
+        event_id = event.get("event_id")
+        data = event.get("data")
+        if (
+            event.get("version") != 1
+            or etype not in {"reminder.due", "task.created", "course.created"}
+            or not isinstance(event_id, str)
+            or not 1 <= len(event_id) <= 128
+            or not isinstance(data, dict)
+            or type(data.get("id")) is not int
+            or data["id"] <= 0
+        ):
+            return
+        if self._recent_events.contains(event_id):
+            return
         if etype == "reminder.due":
-            reminder_id = (event.get("data") or {}).get("id")
-            self._remind_health(self._reminder_text(reminder_id))
+            self._remind_health(self._reminder_text(data["id"]))
         elif etype == "task.created":
             self.show_hint("收到新日程啦，需要我帮你看看吗～")
         elif etype == "course.created":
             self.show_hint("课表有更新啦～")
+        self._recent_events.remember(event_id)
 
     def _reminder_text(self, reminder_id) -> str:
         """按事件里的资源 ID 用 REST 校正提醒正文；失败给兜底文案。"""

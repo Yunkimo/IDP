@@ -28,7 +28,7 @@ def test_config_json_fields():
     assert s.image_engine in ("live2d", "sprite")  # 运行时可通过「切换图片」在两种引擎间切换
     assert s.live2d_model == ""
     assert s.whisper_model == "base"
-    assert s.tts_voice == "zh-CN-XiaoyouNeural"
+    assert s.tts_voice == "zh-CN-XiaoxiaoNeural"
     assert s.max_history > 0
 
 
@@ -57,3 +57,18 @@ def test_switch_persona_and_add_persona(monkeypatch):
     assert s.add_persona("   ", "冷静", "简洁") is False
     assert s.add_persona("新萌", "冷静", "简洁") is True
     assert s.personas["新萌"] == {"personality": "冷静", "tone": "简洁"}
+
+
+def test_legacy_voice_migrates_without_changing_custom_voice(tmp_path, monkeypatch):
+    import json
+
+    import pet.config as config
+
+    monkeypatch.setattr(config, "BASE_DIR", tmp_path)
+    for original, expected in (
+        ("zh-CN-XiaoyouNeural", "zh-CN-XiaoxiaoNeural"),
+        ("zh-CN-YunxiNeural", "zh-CN-YunxiNeural"),
+    ):
+        (tmp_path / "config.json").write_text(json.dumps({"tts_voice": original}), encoding="utf-8")
+        assert Settings().tts_voice == expected
+        assert json.loads((tmp_path / "config.json").read_text())["tts_voice"] == original

@@ -1,7 +1,7 @@
-# 后端实时事件契约（B1，待 A/C 评审）
+# 后端实时事件契约（B1 已合并；B2 补充待 A/C 评审）
 
-关联 [Issue #5](https://github.com/Yunkimo/IDP/issues/5)。版本一提案与本分支实现一致；
-尚未经 A/C 评审、合并或三端联调，不作为已确认的跨端契约。
+关联 [Issue #5](https://github.com/Yunkimo/IDP/issues/5) 与 [Issue #6](https://github.com/Yunkimo/IDP/issues/6)。
+B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C 评审，不把本地验证当作三端验收。
 
 ## 连接与鉴权
 
@@ -34,7 +34,7 @@
 |---|---|---|
 | `task.created` | `POST /api/tasks` 提交 SQLite 成功后 | `GET /api/tasks` |
 | `course.created` | `POST /api/courses` 提交 SQLite 成功后 | `GET /api/courses` |
-| `reminder.due` | 仅预留 schema 和广播入口；B2 调度器尚未实现 | `GET /api/reminders` |
+| `reminder.due` | B2 到期调度器领取提醒后 | `GET /api/reminders` |
 
 样例（ID 与时间仅用于说明）：
 
@@ -68,3 +68,49 @@
 
 复现方法见 [后端 WebSocket 验证报告](test-report.md)。实现参考：
 [FastAPI WebSockets 官方文档](https://fastapi.tiangolo.com/advanced/websockets/)。
+
+## B2：提醒时间与调度状态（待评审补充）
+
+- `POST /api/reminders` 与 `PUT /api/reminders/{id}` 的 `remind_at` 必须是含 `T` 的有效 ISO 日期时间。
+  带时区输入按其偏移转换；兼容旧客户端无时区输入，按 `REMINDER_NAIVE_OFFSET_MINUTES`（默认 480，即 UTC+8）解释。
+  返回和持久化统一为带 `+00:00` 的 UTC 文本。无效输入返回 422，更新不可空字段时显式 null 返回 422。
+- 调度只读取 reminders 表。设置 `tasks.remind_at` 不会自动创建 reminder；桌宠需调用已有创建提醒接口。
+- 当前只处理 `channel=pc/both` 的 WebSocket 阶段；`phone` 等待 B3，不会被误标完成。
+  `both` 本次只证明 WS 阶段，不能代表微信已发送。B3 必须独立建模手机渠道，不能以 done 筛掉手机待发任务。
+- 自动写 `done=1` 表示本次逻辑提醒至少一次对某个 WS 连接的发送调用成功。
+  它不表示所有连接收到、界面展示或用户阅读；人工 PUT done=true 仍可手动完成并取消调度。
+- 没有连接、全部发送失败或总发送超时会保留 done=0，按指数退避重试；默认最多 3 次尝试。
+  部分连接发送成功时不为其他失败连接整体重播。默认退避 30/60 秒，最高等待 300 秒，实际尝试还受扫描间隔影响。
+- event_id 和 occurred_at 在同一次逻辑提醒的重试中保持稳定；occurred_at 为第一次领取时间。
+  修改提醒内容会使旧领取失效并更新逻辑事件 ID。修改时间或渠道默认重新安排（done=0），
+  显式 done=true 优先；仅修改已完成提醒的正文不重新发送。PUT done=false 可以重置失败任务及尝试次数。
+- 在发送前检查领取是否仍有效，在写回时再次比较领取代号；编辑/删除与网络发送之间仍有无法原子化的窗口，
+  客户端可能收到一条已过期通知，应拉取 REST 校正。发送成功但写回前崩溃时可能重发同一 event_id。
+- 重启后按 30 秒领取租约恢复未完成尝试；崩溃发生在最后一次尝试时，租约到期转为 failed，done 保持 0。
+  这是有限次数的至少一次尝试策略，不保证至少送达一次，更不是恰好一次送达。
+
+新增鉴权诊断接口 `GET /api/reminders/{id}/delivery`：
+
+| 字段 | 含义 |
+|---|---|
+| event_id | 当前逻辑提醒事件 ID |
+| status | pending / sending / retry / sent / failed / cancelled |
+| attempts | 已领取尝试次数，崩溃也计入 |
+| last_error | null、no_clients、send_failed、send_timeout、attempts_exhausted 或 invalid_remind_at |
+| next_attempt_at | UTC Unix 秒；0 表示未安排重试 |
+| lease_until | UTC Unix 秒；0 表示无领取租约 |
+
+接口使用既有 X-API-Key；未授权 401，ID 不存在 404；不返回内部领取代号。
+恢复、迁移与单 worker 约束见 [B2 说明](b2-scheduler.md)，量化口径见 [quality-baseline](quality-baseline.md)。
+
+## A4：重复投递处理（2026-10-12 用户授权补全）
+
+桌宠在窗口生命周期保存最近 1024 个已处理 event_id，按最近使用顺序淘汰；
+断线重连复用缓存，重复通知不再拉正文、弹气泡或启动语音。重新安排提醒的新事件 ID 正常显示。
+只处理版本 1、已知类型、长度 1–128 的字符串事件 ID 及正整数资源 ID；非法信封直接忽略。
+处理成功后记录 ID；处理抛出异常则允许后续重试。
+缓存不是业务数据库，不持久化提醒内容；窗口重建、应用重启或容量淘汰后可能再次显示旧事件，
+不承诺跨重启恰好一次。未来若要跨重启去重，需要另行引入持久消费游标/确认协议。
+
+本轮显示延迟从计划到期计算，联调使用 1 秒扫描，30 样本目标均不超过 5 秒；
+默认 30 秒单独报告。决定依据与原条件冲突见 [质量口径](quality-baseline.md)。

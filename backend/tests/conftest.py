@@ -17,6 +17,7 @@ def client(tmp_path, monkeypatch):
 
     monkeypatch.setattr(config, "DB_PATH", tmp_path / "test.db")
     monkeypatch.setattr(config, "API_TOKEN", "test-token")
+    monkeypatch.setattr(config, "SCHEDULER_ENABLED", False)
     db.init_db()
     with TestClient(app) as c:
         yield c
