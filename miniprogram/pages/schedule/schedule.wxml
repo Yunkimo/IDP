@@ -14,6 +14,7 @@
         <view class="course-name">{{course.name}}</view>
         <view class="course-meta">{{course.start_time}} - {{course.end_time}}</view>
         <view wx:if="{{course.location}}" class="course-meta">📍 {{course.location}}</view>
+        <view wx:if="{{course.teacher}}" class="course-meta">👤 {{course.teacher}}</view>
         <view class="course-meta">{{course.weeksText}}周</view>
       </view>
       <view class="course-actions">
@@ -54,6 +55,10 @@
       <view class="form-item">
         <text class="label">地点</text>
         <input class="input" value="{{form.location}}" data-field="location" bindinput="onFormInput" placeholder="选填，如：教三 301" />
+      </view>
+      <view class="form-item">
+        <text class="label">教师</text>
+        <input class="input" value="{{form.teacher}}" data-field="teacher" bindinput="onFormInput" placeholder="选填" />
       </view>
       <view class="form-item">
         <text class="label">周次</text>
