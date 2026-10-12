@@ -18,14 +18,30 @@ class ChatProvider(ABC):
     def stream_chat(self, messages: list[dict], on_chunk=None) -> str:
         """流式对话。on_chunk(str) 每收到一个增量被调用；返回完整文本。"""
 
+    @abstractmethod
+    def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
+        """带工具的单次非流式调用。返回 {"content": str, "tool_calls": [...]}。
+
+        on_chunk 仅为接口对齐保留（非流式下不使用）。
+        """
+
 
 class OpenAICompatProvider(ChatProvider):
     """OpenAI 兼容协议实现（DeepSeek 等）。客户端惰性创建，避免未配密钥时启动即报错。"""
 
-    def __init__(self, api_key: str, base_url: str, model: str) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        base_url: str,
+        model: str,
+        temperature: float = 0.9,
+        max_tokens: int = 1024,
+    ) -> None:
         self.api_key = api_key
         self.base_url = base_url
         self.model = model
+        self.temperature = temperature
+        self.max_tokens = max_tokens
         self._client: OpenAI | None = None
 
     def _get_client(self) -> OpenAI:
@@ -38,8 +54,8 @@ class OpenAICompatProvider(ChatProvider):
             model=self.model,
             messages=messages,
             stream=True,
-            temperature=0.9,
-            max_tokens=1024,
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
         )
         parts: list[str] = []
         for chunk in stream:
@@ -52,6 +68,26 @@ class OpenAICompatProvider(ChatProvider):
                     on_chunk(content)
         return "".join(parts)
 
+    def chat_with_tools(self, messages: list[dict], tools: list[dict], on_chunk=None) -> dict:
+        resp = self._get_client().chat.completions.create(
+            model=self.model,
+            messages=messages,
+            tools=tools,
+            tool_choice="auto",
+            temperature=self.temperature,
+            max_tokens=self.max_tokens,
+        )
+        msg = resp.choices[0].message
+        tool_calls = [
+            {
+                "id": tc.id,
+                "type": tc.type,  # DeepSeek 反序列化要求 tool_call 带 type 字段，缺了会 422
+                "function": {"name": tc.function.name, "arguments": tc.function.arguments},
+            }
+            for tc in (msg.tool_calls or [])
+        ]
+        return {"content": msg.content or "", "tool_calls": tool_calls}
+
 
 def create_chat_provider(settings: Settings) -> ChatProvider:
     """工厂方法：根据配置创建对话提供者。"""
@@ -59,4 +95,6 @@ def create_chat_provider(settings: Settings) -> ChatProvider:
         settings.llm_api_key,
         settings.llm_base_url,
         settings.llm_model,
+        temperature=settings.llm_temperature,
+        max_tokens=settings.llm_max_tokens,
     )
