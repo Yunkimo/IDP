@@ -72,7 +72,7 @@ LLM_MODEL=deepseek-chat
   "persona": { "personality": "…", "tone": "…" },  // 人设
   "frames": ["idle_0.png"],       // 形象帧（见 assets/README.md）
   "sprite_size": 180,
-  "tts_voice": "zh-CN-XiaoyouNeural",  // 音色
+  "tts_voice": "zh-CN-XiaoxiaoNeural", // 音色；旧默认 Xiaoyou 在加载时迁移
   "tts_rate": "+10%", "tts_pitch": "+20Hz",
   "whisper_model": "base",        // 识别精度：base/small/medium
   "enable_voice": true,           // 关闭语音播报
@@ -158,4 +158,20 @@ python -m uvicorn app.main:app --host 127.0.0.1 --port 8001 --workers 1 --ws web
 
 排查：握手 403 检查 token 和服务端配置；普通 HTTP GET 404 不表示 WS 不可用；
 断线后重连并重新拉取 REST；慢客户端可能以 1013 关闭。收不到提醒到期事件时，
-先确认 B2 是否已实现，本次 B1 尚未启动调度器。
+检查是否启用 B2、提醒 channel、到期时间及发送状态。B2 使用方法和备份恢复见
+[提醒调度说明](b2-scheduler.md)；`phone` 渠道仍等待 B3。
+
+### A4 / B2 提醒联调
+
+把 `backend/.env.integration.example` 的配置项合并到后端 `.env` 并重启服务，
+联调使用 1 秒扫描；验收从计划到期计时，要求气泡在 5 秒内显示。默认 30 秒配置另行测量。
+桌宠自动缓存最近 1024 个已处理事件，断线重连不会重复弹出或播报同一事件。
+应用重启会清空缓存，缓存淘汰后的旧事件也可能再次显示；当前不保证跨重启恰好一次。
+
+语音默认使用 `zh-CN-XiaoxiaoNeural`，旧默认 `zh-CN-XiaoyouNeural` 在读取时兼容迁移，
+不覆盖其他自选声音。`tts_timeout_seconds` 默认 30 秒（允许大于 0、最多 120），
+上游失败或超时会清理临时音频，气泡仍然显示；TTS 需要外网与可用的输出设备。
+Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用系统中文声音生成 WAV，
+经同一播放器播放，无须网络；需要已安装中文语音（本机为 Microsoft Huihui Desktop）。
+在线和本地阶段各受 `tts_timeout_seconds` 限制，因此故障时总等待可能达到两倍该值；
+气泡显示不等待语音合成。非 Windows 系统没有此兜底，仍报告在线服务错误。

@@ -49,8 +49,9 @@ CREATE TABLE IF NOT EXISTS reminders (
 @contextmanager
 def _conn():
     config.DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(config.DB_PATH))
+    conn = sqlite3.connect(str(config.DB_PATH), timeout=config.DB_TIMEOUT_SECONDS)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys=ON")
     try:
         yield conn
         conn.commit()
@@ -60,8 +61,11 @@ def _conn():
 
 def init_db() -> None:
     """建表（幂等）。"""
+    from .reminder_store import migrate
+
     with _conn() as conn:
         conn.executescript(_SCHEMA)
+        migrate(conn)
 
 
 def _get_by_id(table: str, row_id: int) -> dict | None:
@@ -164,6 +168,11 @@ def list_reminders() -> list[dict]:
 
 
 def create_reminder(title, remind_at, body="", channel="both", task_id=None) -> dict:
+    """创建提醒及持久化调度状态，两者在同一事务提交。"""
+    from .reminder_store import seed_delivery
+    from .reminder_time import normalize_reminder_time
+
+    remind_at = normalize_reminder_time(remind_at)
     with _conn() as conn:
         cur = conn.execute(
             "INSERT INTO reminders (title, body, remind_at, channel, task_id) "
@@ -171,12 +180,37 @@ def create_reminder(title, remind_at, body="", channel="both", task_id=None) -> 
             (title, body, remind_at, channel, task_id),
         )
         new_id = cur.lastrowid
+        seed_delivery(
+            conn, dict(conn.execute("SELECT * FROM reminders WHERE id=?", (new_id,)).fetchone())
+        )
     return _get_by_id("reminders", new_id)
 
 
 def update_reminder(reminder_id: int, fields: dict) -> dict | None:
+    """编辑时失效旧领取；重新安排时间或显式 done=false 开始新逻辑事件。"""
+    from .reminder_store import seed_delivery
+    from .reminder_time import normalize_reminder_time
+
     cols = {"title", "body", "remind_at", "channel", "done", "task_id"}
-    return _apply_update("reminders", cols, reminder_id, fields)
+    updates = {key: value for key, value in fields.items() if key in cols}
+    if not updates:
+        return _get_by_id("reminders", reminder_id)
+    if "remind_at" in updates:
+        updates["remind_at"] = normalize_reminder_time(updates["remind_at"])
+    if {"remind_at", "channel"} & updates.keys():
+        updates.setdefault("done", False)
+    if "done" in updates:
+        updates["done"] = int(updates["done"])
+    with _conn() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        set_sql = ", ".join(f"{key}=?" for key in updates)
+        conn.execute(f"UPDATE reminders SET {set_sql} WHERE id=?", (*updates.values(), reminder_id))
+        row = conn.execute("SELECT * FROM reminders WHERE id=?", (reminder_id,)).fetchone()
+        if row is None:
+            return None
+        conn.execute("DELETE FROM reminder_deliveries WHERE reminder_id=?", (reminder_id,))
+        seed_delivery(conn, dict(row))
+    return _get_by_id("reminders", reminder_id)
 
 
 def delete_reminder(reminder_id: int) -> bool:
