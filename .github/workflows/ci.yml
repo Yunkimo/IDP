@@ -47,9 +47,10 @@ jobs:
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
 
       - name: Secret scan and whitespace check
+        # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
         if: matrix.python-version == '3.12'
         working-directory: .
-        run: pre-commit run secrets whitespace --all-files
+        run: SKIP=ruff-check,ruff-format pre-commit run --all-files
 
       - name: Audit backend dependencies
         if: matrix.python-version == '3.12'
