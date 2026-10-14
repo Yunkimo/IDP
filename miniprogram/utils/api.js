@@ -89,6 +89,7 @@ function upload(path, { filePath, name = 'image', formData } = {}) {
 
 module.exports = {
   baseUrl,
+  apiKey,
 
   // 课表
   getCourses: () => request('/api/courses'),
