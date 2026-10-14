@@ -1,6 +1,7 @@
 // 课表页：按星期分组展示课程，支持添加/编辑/删除，数据同步到后端 SQLite。
 // 非本周课程置灰并标注「本周不上」（weeks 不含当前周；无周次 = 全周）。
 const api = require('../../utils/api');
+const ws = require('../../utils/ws');
 const {
   WEEKDAY_LABELS,
   WEEK_OPTIONS,
@@ -88,6 +89,23 @@ Page({
 
   onShow() {
     this.setData({ currentWeek: getCurrentWeek() });
+    ws.on('course.created', this.onWsEvent);
+    ws.on('reconnect', this.onWsEvent);
+    this.load();
+  },
+
+  onHide() {
+    ws.off('course.created', this.onWsEvent);
+    ws.off('reconnect', this.onWsEvent);
+  },
+
+  onUnload() {
+    ws.off('course.created', this.onWsEvent);
+    ws.off('reconnect', this.onWsEvent);
+  },
+
+  // 课表事件到达：REST 重读
+  onWsEvent() {
     this.load();
   },
 
