@@ -1,10 +1,20 @@
 # 智能桌宠 · Intelligent Desk Pet
 
-[![CI](https://github.com/Yunkimo/IDP/actions/workflows/ci.yml/badge.svg)](https://github.com/Yunkimo/IDP/actions)
+[![CI](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/workflows/ci.yml/badge.svg)](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
 期末课设：三端协作的智能桌面宠物。桌宠端用文字 / 语音与用户对话，靠大模型 + 工具调用查课表、排日程、设提醒；后端是唯一数据源与调度中枢；小程序让用户在手机上查改并接收离线提醒。
+
+## 功能特性
+
+- **AI 学习生活规划**：文字 / 语音对话，大模型 + 工具调用自动查课表、排日程、设提醒。
+- **课表提醒**：课表增删改查（桌宠端与小程序，支持拍照识别导入），到期自动提醒。
+- **健康关怀**：久坐检测，按连续在座时长提醒起身喝水 / 休息。
+- **多端提醒**：后端统一调度，到点经 WebSocket 推送到桌宠、经订阅消息推送到手机。
+- **可联网查询**：天气、搜索等联网问答（免 key）。
+
+## 系统架构
 
 ```
 桌宠端（A）   ↔   后端（B）   ↔   小程序（C）
@@ -17,12 +27,15 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 
 | 部分 | 状态 |
 |---|---|
-| **桌宠基线**：无边框窗口、文字与双向语音对话、人设与跨会话记忆、Live2D 形象接口 | ✅ 已迁入 |
-| **后端 M1 骨架**：课表 / 日程 / 提醒 CRUD + `X-API-Key` 鉴权 + 6 单测 | ✅ 已完成 |
-| **工程基建**：CI 双 job、ruff 检查与格式化、`main` / `develop` 分支保护 | ✅ 已完成 |
-| **A1–A4** 后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ⬜ 待开发 |
-| **B1–B4** WebSocket 广播 / 到期调度 / 微信订阅 / 联网查询 | ⬜ 待开发 |
-| **C1–C5** 小程序骨架 / 实时刷新 / 订阅授权 / 部署 / 文档 | ⬜ 待开发 |
+| **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已完成 |
+| **后端 B1–B2**：WebSocket 广播 / 到期提醒调度器 | ✅ 已完成 |
+| **后端 B3**：微信订阅消息（离线推送） | ⬜ 待开发 |
+| **小程序 C1**：骨架 + api.js（查改课表/日程、拍照识别课表、周次设置） | ✅ 已完成 |
+| **小程序 C2–C3**：实时刷新 / 订阅消息授权 | ⬜ 待开发 |
+| **小程序 C4–C5**：部署 / 文档与演示 | ⬜ 待开发 |
+| **工程基建**：CI 双 job、ruff、`main` 分支保护 | ✅ 已完成 |
+
+> B4（联网查询）为可选项：天气 / 搜索已由桌宠端本地实现，暂不单独立项。
 
 细化到验收标准的任务清单见 [docs/tasks/](docs/tasks/)。
 
@@ -54,7 +67,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 
 ### 小程序
 
-尚未开始（计划目录 `miniprogram/`），见 [任务书 C](docs/tasks/C-miniprogram-deploy.md)。
+用「微信开发者工具」导入 `miniprogram/` 目录（`project.config.json` 已填 appid）。复制 `config.example.js` 为 `config.js`，填入后端地址与 `backend/.env` 的 `API_TOKEN`；开发期在「详情 → 本地设置」勾选「不校验合法域名」即可连本地后端。实时刷新与订阅提醒尚待联调（C2/C3），详见 [任务书 C](docs/tasks/C-miniprogram-deploy.md)。
 
 ## 使用说明
 
@@ -70,7 +83,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 ```
 pet/             桌宠端（PyQt6：窗口 / 形象 / 对话 / 语音 / 记忆）
 backend/         后端（FastAPI + SQLite，唯一数据源）
-miniprogram/     小程序（待建）
+miniprogram/     小程序（骨架 + api.js，C1）
 assets/          桌宠素材（live2d/ 为渲染运行时，模型由用户自行导入）
 docs/            设计文档、用户手册、测试与安全文档、三份任务书
 tests/           桌宠端测试（后端测试在 backend/tests/）
@@ -87,13 +100,24 @@ config.json      桌宠非敏感配置
 | B [@wwweiliang](https://github.com/wwweiliang) | 后端服务 | `feat/backend-realtime` | [B](docs/tasks/B-backend-service.md) |
 | C [@YingboQi](https://github.com/YingboQi) | 小程序 + 部署 + 文档 | `feat/miniprogram` | [C](docs/tasks/C-miniprogram-deploy.md) |
 
-分支模型：`main`（主干）/ `develop`（开发）/ `feat/*`（特性）。`main` 与 `develop` 均已开启分支保护，改动须经 PR + CI 通过 + 1 人审批。
+分支模型：`main`（主干）/ `develop`（开发）/ `feat/*`（特性）。`main` 已开启分支保护（PR + CI 通过 + 1 人审批），`develop` 为开放开发分支。
 
 ## 文档
 
-- [设计文档（架构与设计模式）](docs/design.md)
-- [用户手册](docs/user-manual.md) ｜ [测试文档](docs/testing.md) ｜ [信息安全设计](docs/security.md)
-- [任务书 A / B / C](docs/tasks/)
+| 文档 | 说明 |
+|---|---|
+| [设计文档](docs/design.md) | 架构演进、设计模式、重构效果量化 |
+| [用户手册](docs/user-manual.md) | 安装、运行与操作说明 |
+| [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
+| [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
+| [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
+| [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
+| [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
+| [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
+| [贡献指南](CONTRIBUTING.md) | 分支、提交与代码风格约定 |
+| [任务书 A / B / C](docs/tasks/) | 三人任务分解与验收标准 |
+
+> **演示视频**：待录制后补链接（由成员 A 录制，覆盖「对话 → 排日程 → 到期提醒 → 手机收消息」端到端流程）。
 
 ## 许可证与依赖
 
