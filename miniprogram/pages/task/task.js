@@ -1,6 +1,10 @@
 // 日程页：列出全部日程/待办，支持添加/编辑/删除与勾选完成，数据同步到后端 SQLite。
 const api = require('../../utils/api');
+const ws = require('../../utils/ws');
 const { dateStr } = require('../../utils/datetime');
+
+// 日程页关心的后端事件
+const WS_EVENTS = ['task.created', 'reminder.due', 'reconnect'];
 
 const EMPTY_FORM = { id: null, title: '', note: '', due_at: '' };
 
@@ -14,6 +18,20 @@ Page({
   },
 
   onShow() {
+    WS_EVENTS.forEach((type) => ws.on(type, this.onWsEvent));
+    this.load();
+  },
+
+  onHide() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  onUnload() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  // 日程事件到达：REST 重读
+  onWsEvent() {
     this.load();
   },
 

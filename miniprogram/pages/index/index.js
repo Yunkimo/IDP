@@ -1,6 +1,7 @@
 // 今日页：展示今天的课表与到期/逾期待办，支持勾选完成。
 // 课表按「本周周次」过滤：weeks 不含当前周的课程不显示（无周次 = 全周）。
 const api = require('../../utils/api');
+const ws = require('../../utils/ws');
 const {
   WEEKDAY_LABELS,
   WEEK_OPTIONS,
@@ -10,6 +11,9 @@ const {
   setCurrentWeek,
   isActiveWeek,
 } = require('../../utils/datetime');
+
+// 今日页关心的后端事件（WebSocket 推送后 REST 重读，节流由 ws.js 统一处理）
+const WS_EVENTS = ['task.created', 'course.created', 'reminder.due', 'reconnect'];
 
 Page({
   data: {
@@ -24,6 +28,20 @@ Page({
 
   onShow() {
     this.setData({ currentWeek: getCurrentWeek() });
+    WS_EVENTS.forEach((type) => ws.on(type, this.onWsEvent));
+    this.loadToday();
+  },
+
+  onHide() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  onUnload() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  // 后端事件到达：REST 重读（onShow 也走这里，覆盖断线恢复）
+  onWsEvent() {
     this.loadToday();
   },
 
