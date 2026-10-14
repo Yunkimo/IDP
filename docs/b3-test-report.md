@@ -43,7 +43,15 @@ WS 延迟口径为计划到期 UTC 时间至本机客户端收包，扫描间隔
 
 本地提交检查：Ruff 检查、格式检查、暂存区空白检查和密钥扫描全部通过；最初发现新增文档末尾多余空行，修正后复验通过，没有绕过钩子。`pip-audit -r backend/requirements.txt` 返回 `No known vulnerabilities found`。远端 CI 以关联 PR 的实际检查记录为准。
 
-远端首次复验记录：[运行 38559594613](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/38559594613) 的桌面任务通过，后端 3.12 在密钥扫描失败，3.10 因矩阵失败联动被取消。核对定位后，命中的是测试与 Mock 脚本中的两处假 WX_SECRET，未涉及真实凭证。仅在这两行增加带原因的 `pragma: allowlist secret` 注释；没有排除文件或停用扫描，业务逻辑不变。修复后的远端检查见同一 PR 的最新运行。
+远端复验记录：[运行 38559594613](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/38559594613) 的桌面任务通过，后端 3.12 在密钥扫描失败，3.10 因矩阵失败联动被取消。核对定位后，命中的是测试与 Mock 脚本中的两处假 WX_SECRET，未涉及真实凭证。仅在这两行增加带原因的 `pragma: allowlist secret` 注释；没有排除文件或停用扫描，业务逻辑不变。提交 b104123 的 [运行 38559975211](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/38559975211) 三组检查全部通过。
+
+### 邮件失败记录复核与测试稳定性修正
+
+用户提供两封失败邮件后，逐次复核发现更早的 [运行 38559431450](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/38559431450) 还存在一项此前未分析的失败：Python 3.10 中 `test_locked_database_does_not_block_event_loop_and_recovers` 的观察代码读取数据库时遇到 `database is locked`。这与上述 Mock 密钥误报是两类问题，不能用后来一次全绿推断锁竞争问题已经修复。
+
+旧用例将数据库等待缩短为 50 毫秒，放锁后又在事件循环中反复同步 SELECT，与后台恢复事务争锁。改为通过事件观察真实的锁失败和真实的事务提交，在事务完成并停止扫描后才核对持久状态；持锁期间直接通过持锁连接验证 done=0。保留故障注入、两秒恢复期限和实际 SQLite 操作，没有跳过用例、捕获后忽略断言或改动生产逻辑。
+
+修正后本地 Python 3.13 全量 168 项通过（15.39 秒）。针对该竞争用例的 Python 3.10 独立进程重复结果见 [重复验证数据](evidence/b3/lock-test-repeat.json)；后续 CI 以 PR #29 最新提交检查为准。
 
 ## 用例与安全设计证据
 
