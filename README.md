@@ -29,7 +29,7 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 |---|---|
 | **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已完成 |
 | **后端 B1–B2**：WebSocket 广播 / 到期提醒调度器 | ✅ 已完成 |
-| **后端 B3**：微信订阅消息（离线推送） | ⬜ 待开发 |
+| **后端 B3**：微信登录、订阅登记与离线推送 | 实现及 Mock 验证完成，[PR #29](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/29) 待评审；真机待 C3 联调 |
 | **小程序 C1**：骨架 + api.js（查改课表/日程、拍照识别课表、周次设置） | ✅ 已完成 |
 | **小程序 C2–C3**：实时刷新 / 订阅消息授权 | ⬜ 待开发 |
 | **小程序 C4–C5**：部署 / 文档与演示 | ⬜ 待开发 |
@@ -111,6 +111,8 @@ config.json      桌宠非敏感配置
 | [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
 | [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
 | [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
+| [B3 微信接口与部署](docs/b3-wechat.md) | 登录、授权归属、发送状态、配置及 C3 联调步骤 |
+| [B3 测试报告](docs/b3-test-report.md) | 双 Python 版本、故障测试、Mock 量化与原始证据 |
 | [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
 | [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
 | [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
