@@ -175,3 +175,7 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 经同一播放器播放，无须网络；需要已安装中文语音（本机为 Microsoft Huihui Desktop）。
 在线和本地阶段各受 `tts_timeout_seconds` 限制，因此故障时总等待可能达到两倍该值；
 气泡显示不等待语音合成。非 Windows 系统没有此兜底，仍报告在线服务错误。
+
+## B3 微信提醒使用入口
+
+微信功能默认关闭，不影响桌面使用。开发验收可在后端虚拟环境运行 `python scripts/smoke_backend_wechat.py --samples 30`，不需要真实微信凭证。真实使用需要后端配置账号和模板，C3 完成登录、提醒归属绑定及用户主动授权；完整步骤、错误排查和结果不明时的处理见 [B3 使用与部署说明](b3-wechat.md)。当前真机接收和 C3 界面尚待联调。
