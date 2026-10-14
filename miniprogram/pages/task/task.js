@@ -1,6 +1,10 @@
 // 日程页：列出全部日程/待办，支持添加/编辑/删除与勾选完成，数据同步到后端 SQLite。
 const api = require('../../utils/api');
+const ws = require('../../utils/ws');
 const { dateStr } = require('../../utils/datetime');
+
+// 日程页关心的后端事件
+const WS_EVENTS = ['task.created', 'reminder.due', 'reconnect'];
 
 const EMPTY_FORM = { id: null, title: '', note: '', due_at: '' };
 
@@ -14,6 +18,20 @@ Page({
   },
 
   onShow() {
+    WS_EVENTS.forEach((type) => ws.on(type, this.onWsEvent));
+    this.load();
+  },
+
+  onHide() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  onUnload() {
+    WS_EVENTS.forEach((type) => ws.off(type, this.onWsEvent));
+  },
+
+  // 日程事件到达：REST 重读
+  onWsEvent() {
     this.load();
   },
 
@@ -114,11 +132,13 @@ Page({
         wx.showLoading({ title: '删除中' });
         try {
           await api.deleteTask(id);
-          await this.load();
+          wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
+          // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片
           wx.showToast({ title: err.message, icon: 'none' });
         } finally {
           wx.hideLoading();
+          await this.load();
         }
       },
     });
