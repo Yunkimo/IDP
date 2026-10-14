@@ -9,6 +9,7 @@ from . import config, db
 from .logging_config import install_log_filters
 from .push_service import PushService
 from .routers import course_import, courses, reminders, tasks, ws
+from .scheduler import Scheduler
 
 install_log_filters()
 
@@ -20,9 +21,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     _app.state.push_service = PushService(
         config.WS_SEND_TIMEOUT_SECONDS, config.WS_CLOSE_TIMEOUT_SECONDS
     )
+    _app.state.scheduler = Scheduler(_app.state.push_service.broadcast)
+    if config.SCHEDULER_ENABLED:
+        _app.state.scheduler.start()
     try:
         yield
     finally:
+        await _app.state.scheduler.stop()
         await _app.state.push_service.close_all()
 
 
