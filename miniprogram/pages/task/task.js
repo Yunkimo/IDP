@@ -132,11 +132,13 @@ Page({
         wx.showLoading({ title: '删除中' });
         try {
           await api.deleteTask(id);
-          await this.load();
+          wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
+          // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片
           wx.showToast({ title: err.message, icon: 'none' });
         } finally {
           wx.hideLoading();
+          await this.load();
         }
       },
     });
