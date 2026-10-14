@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS courses (
     start_time TEXT NOT NULL,
     end_time TEXT NOT NULL,
     location TEXT NOT NULL DEFAULT '',
+    teacher TEXT NOT NULL DEFAULT '',
     weeks TEXT NOT NULL DEFAULT '[]'
 );
 CREATE TABLE IF NOT EXISTS tasks (
@@ -60,12 +61,15 @@ def _conn():
 
 
 def init_db() -> None:
-    """建表（幂等）。"""
+    """幂等建表，保留提醒迁移及其备份，再补充课表教师字段。"""
     from .reminder_store import migrate
 
     with _conn() as conn:
         conn.executescript(_SCHEMA)
         migrate(conn)
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(courses)")}
+        if "teacher" not in columns:
+            conn.execute("ALTER TABLE courses ADD COLUMN teacher TEXT NOT NULL DEFAULT ''")
 
 
 def _get_by_id(table: str, row_id: int) -> dict | None:
@@ -103,17 +107,20 @@ def list_courses() -> list[dict]:
     return [dict(r) for r in rows]
 
 
-def create_course(name, day_of_week, start_time, end_time, location="", weeks=None) -> dict:
+def create_course(
+    name, day_of_week, start_time, end_time, location="", teacher="", weeks=None
+) -> dict:
     with _conn() as conn:
         cur = conn.execute(
-            "INSERT INTO courses (name, day_of_week, start_time, end_time, location, weeks) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO courses (name, day_of_week, start_time, end_time, location, teacher, weeks) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 name,
                 day_of_week,
                 start_time,
                 end_time,
                 location,
+                teacher,
                 json.dumps(weeks or [], ensure_ascii=False),
             ),
         )
@@ -121,8 +128,36 @@ def create_course(name, day_of_week, start_time, end_time, location="", weeks=No
     return _get_by_id("courses", new_id)
 
 
+def create_courses_bulk(courses: list[dict]) -> list[dict]:
+    """单事务批量插入课表；任一失败整体回滚（courses 已通过 CourseIn 校验）。"""
+    if not courses:
+        return []
+    with _conn() as conn:
+        ids: list[int] = []
+        for course in courses:
+            cur = conn.execute(
+                "INSERT INTO courses (name, day_of_week, start_time, end_time, location, teacher, weeks) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    course["name"],
+                    course["day_of_week"],
+                    course["start_time"],
+                    course["end_time"],
+                    course.get("location", ""),
+                    course.get("teacher", ""),
+                    json.dumps(course.get("weeks") or [], ensure_ascii=False),
+                ),
+            )
+            ids.append(cur.lastrowid)
+        placeholders = ", ".join("?" for _ in ids)
+        rows = conn.execute(
+            f"SELECT * FROM courses WHERE id IN ({placeholders}) ORDER BY id", ids
+        ).fetchall()
+    return [dict(r) for r in rows]
+
+
 def update_course(course_id: int, fields: dict) -> dict | None:
-    cols = {"name", "day_of_week", "start_time", "end_time", "location", "weeks"}
+    cols = {"name", "day_of_week", "start_time", "end_time", "location", "teacher", "weeks"}
     return _apply_update("courses", cols, course_id, fields)
 
 
