@@ -29,7 +29,7 @@ def wx_config(monkeypatch):
     for name, value in {
         "WX_ENABLED": True,
         "WX_APPID": "test-app",
-        "WX_SECRET": "test-secret",
+        "WX_SECRET": "test-secret",  # pragma: allowlist secret -- Mock-only placeholder
         "WX_TEMPLATE_ID": "test-template",
         "WX_TEMPLATE_FIELDS": {"thing1": "title", "time2": "remind_at"},
         "WX_MINIPROGRAM_STATE": "developer",

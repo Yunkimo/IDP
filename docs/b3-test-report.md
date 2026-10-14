@@ -43,6 +43,8 @@ WS 延迟口径为计划到期 UTC 时间至本机客户端收包，扫描间隔
 
 本地提交检查：Ruff 检查、格式检查、暂存区空白检查和密钥扫描全部通过；最初发现新增文档末尾多余空行，修正后复验通过，没有绕过钩子。`pip-audit -r backend/requirements.txt` 返回 `No known vulnerabilities found`。远端 CI 以关联 PR 的实际检查记录为准。
 
+远端首次复验记录：[运行 38559594613](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/runs/38559594613) 的桌面任务通过，后端 3.12 在密钥扫描失败，3.10 因矩阵失败联动被取消。核对定位后，命中的是测试与 Mock 脚本中的两处假 WX_SECRET，未涉及真实凭证。仅在这两行增加带原因的 `pragma: allowlist secret` 注释；没有排除文件或停用扫描，业务逻辑不变。修复后的远端检查见同一 PR 的最新运行。
+
 ## 用例与安全设计证据
 
 B3 新增 59 项，原有 109 项均保留。实现与用例见 `backend/tests/test_wechat.py`。
