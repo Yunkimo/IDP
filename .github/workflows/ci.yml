@@ -5,6 +5,10 @@ on:
     branches: [main, develop]
   pull_request:
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   # 后端：FastAPI + SQLite，轻量，无需系统依赖，单独跑 backend/tests
   backend:
@@ -21,6 +25,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
+          cache: pip
 
       - name: Install backend dependencies
         run: |
@@ -29,11 +34,11 @@ jobs:
 
       - name: Backend formatting and static checks
         run: |
-          ruff check . ../scripts/smoke_backend_ws.py
-          ruff format --check . ../scripts/smoke_backend_ws.py
+          ruff check . ../scripts
+          ruff format --check . ../scripts
 
       - name: Test backend (pytest)
-        run: pytest
+        run: pytest --cov=app --cov-report=term
 
       - name: Real WebSocket smoke test
         run: python ../scripts/smoke_backend_ws.py
@@ -41,11 +46,14 @@ jobs:
       - name: Reminder scheduling smoke test
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
 
-      - name: Commit checks and secret scan
+      - name: Secret scan and whitespace check
+        # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
+        if: matrix.python-version == '3.12'
         working-directory: .
-        run: pre-commit run --all-files
+        run: SKIP=ruff-check,ruff-format pre-commit run --all-files
 
       - name: Audit backend dependencies
+        if: matrix.python-version == '3.12'
         run: pip-audit -r requirements.txt
 
   # 桌宠：PyQt6 + pynput + faster-whisper 等，需 Qt offscreen 与虚拟 X 服务器
@@ -57,6 +65,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+          cache: pip
 
       - name: Install system dependencies
         run: |
@@ -73,11 +82,14 @@ jobs:
 
       - name: Lint (ruff)
         run: |
-          ruff check .
-          ruff format --check .
+          ruff check main.py pet tests
+          ruff format --check main.py pet tests
 
       - name: Test (pytest)
         # xvfb-run 提供虚拟 X 显示器，供 pynput 探测 X 连接；Qt 走 offscreen 平台
-        run: xvfb-run -a pytest tests/
+        run: xvfb-run -a pytest tests/ --cov=pet --cov-report=term-missing
         env:
           QT_QPA_PLATFORM: offscreen
+
+      - name: Audit desktop dependencies
+        run: pip-audit -r requirements.txt
