@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from .. import db
+from .. import db, reminder_store
 from ..auth import require_token
 from ..schemas import ReminderIn, ReminderUpdate
 
@@ -14,6 +14,15 @@ router = APIRouter(
 @router.get("")
 def list_reminders():
     return db.list_reminders()
+
+
+@router.get("/{reminder_id}/delivery")
+def delivery_status(reminder_id: int) -> dict:
+    """查询提醒的 WebSocket 发送尝试状态。"""
+    delivery = reminder_store.delivery_status(reminder_id)
+    if delivery is None:
+        raise HTTPException(status_code=404, detail="提醒不存在")
+    return delivery
 
 
 @router.post("", status_code=201)
