@@ -60,6 +60,55 @@
   最终原始数据与复现命令见 [B2 报告](b2-test-report.md)。
 - 人工确认：未代替 A/C 的契约评审、客户端 UI 展示验收或其他成员的部署复现。
 
+## 2026-10-14：C2 / Issue #10
+
+- 需求：[实时刷新议题](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/10)；
+  用户明确要求按本地 C 守则 v1.3 开工。
+- 工具：Claude Code 会话、Git、GitHub API、Python、pytest、Ruff。
+- 基线：`263917d`（`feat/miniprogram`，C1 及识别/周次功能之后）。
+- 功能：`miniprogram/utils/ws.js` 集中式 WebSocket 适配层（连接、重连退避、
+  前后台生命周期、事件契约校验、event_id 去重、同类型节流合并）；
+  三个页面 onShow 订阅 / onHide 退订，事件到达后 REST 重读；重连成功发
+  'reconnect' 提醒页面刷新。
+- 关键要求：HTTP→WS 地址映射、页面不得各自建连、监听不重复注册、
+  突发事件节流、断线恢复用 REST 重读（契约无历史补发）。
+- 采用：Set 去重订阅；首条立即 + 尾条补发的节流窗口（400ms）；
+  退避序列 1s→30s；切后台主动断开。
+- 未采用：页面级自行重连、本地业务缓存、事件驱动的局部增量更新（事件只带
+  资源 ID，统一 REST 重读更简单且与契约一致）。
+- 人工修改：本轮尚无人工代码修改记录；真机/模拟器验收与断线场景待人工执行。
+
+## 2026-10-12：课表周次过滤（用户直接需求，补建议题 #24）
+
+- 需求：用户设置「第几周」，今日页按 weeks 过滤显示、课表页标注「本周不上」。
+- 工具：Claude Code 会话、Git、GitHub API。
+- 功能：`utils/datetime.js` 周次存取与 `isActiveWeek` 判定；两页顶部周次选择器。
+- 采用：本地 storage 持久化当前周次；无周次=全周；识别导入后首次提示设置。
+
+## 2026-10-12：课表图片识别导入（用户直接需求，补建议题 #23）
+
+- 需求：拍照/选图识别课表，确认后批量导入；含识别质量五项反馈的迭代修复。
+- 工具：Claude Code 会话、Git、GitHub API、httpx、硅基流动 Qwen3-VL-32B-Instruct。
+- 功能：后端 `vision.py`（grid/notes 分区提示词、节次时间映射、周数解析、
+  双路并行取交集防臆造、5xx 重试）+ `POST /api/courses/parse-image` 与 `/bulk`；
+  小程序「识」按钮、确认弹窗、教师字段。
+- 真实纠错：①detect-secrets 误报 apiKey 行，加 `// pragma: allowlist secret`；
+  ②Qwen2.5-VL 已在平台下线，改 Qwen3-VL；③模型偶发把备注课程臆造进空格子，
+  改分区输出+确定性合并+双路交集；④GLM-4.5V 星期列整体错位，弃用。
+- 人工修改：节次时间映射表由用户提供（08:00 起标准表）；识别质量由用户真图反馈驱动。
+
+## 2026-10-12：C1 / Issue #9
+
+- 需求：[小程序骨架议题](https://github.com/Yunkimo/IDP/issues/9)。
+- 工具：Claude Code 会话、Git、GitHub API。
+- 基线：`b29bdd9`（`develop`），建立 `feat/miniprogram`，PR #22。
+- 功能：`miniprogram/` 骨架（三页面 + api.js 封装 + config 示例），CI 修复
+  （detect-secrets 豁免、模型名修正、appid 填写）。
+- 真实纠错：detect-secrets 对 `apiKey: '...'` 必然命中，与占位值无关——
+  排查路径：CI 日志 → 本地复现（发现 scan --baseline 会改写基线）→ 读源码
+  定位 KeywordDetector 正则 → 行内豁免。
+- 人工修改：AppID、API_TOKEN 等真实配置由用户提供；开发者工具验收待人工执行。
+
 ## 2026-10-11：B1 / Issue #5
 
 - 需求：[WebSocket 广播议题](https://github.com/Yunkimo/IDP/issues/5)；用户明确要求按本地 B 守则 v1.3 开工。
