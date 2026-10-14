@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from . import config, db
 from .logging_config import install_log_filters
 from .push_service import PushService
-from .routers import courses, reminders, tasks, ws
+from .routers import course_import, courses, reminders, tasks, ws
 from .scheduler import Scheduler
 
 install_log_filters()
@@ -34,6 +34,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="智能桌宠后端", version="0.1.0", lifespan=lifespan)
 
 app.include_router(tasks.router)
+app.include_router(course_import.router)
 app.include_router(courses.router)
 app.include_router(reminders.router)
 app.include_router(ws.router)

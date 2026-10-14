@@ -13,6 +13,7 @@ class CourseIn(BaseModel):
     start_time: str
     end_time: str
     location: str = ""
+    teacher: str = ""
     weeks: list[int] | None = None
 
 
@@ -22,6 +23,7 @@ class CourseUpdate(BaseModel):
     start_time: str | None = None
     end_time: str | None = None
     location: str | None = None
+    teacher: str | None = None
     weeks: list[int] | None = None
 
 

@@ -2,6 +2,11 @@
 .env
 data/
 
+# 小程序本地配置（含 API Key，不入库；由 miniprogram/config.example.js 复制而来）
+miniprogram/config.js
+# 微信开发者工具的个人项目配置（每台机器不同，不入库）
+miniprogram/project.private.config.json
+
 # Python
 __pycache__/
 *.py[cod]
