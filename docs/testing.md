@@ -98,3 +98,9 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
   按 §1 策略由 `scripts/smoke_test.py` + 人工验证覆盖。
 - 久坐检测的 Windows 分支（`ctypes` `GetLastInputTime`）在 Linux CI 下不覆盖，仅由本地人工验证。
 - Live2D 模块依赖 `PyQt6-WebEngine`，在 Linux CI 运行时未加载，故不计入 CI 覆盖率统计。
+
+## B4 分支验证增量（2026-10-15）
+
+本分支从 `42a95ba` 开始，新增 `backend/tests/test_web_query.py` 的 63 项用例，当前后端 172 项、桌面 106 项均通过。旧章节中的 109 项是 B4 之前的记录；B3 在另一 PR 中，不能将其用例计入本分支。B4 CI 新增 `scripts/smoke_backend_web_query.py`（真实 curl、Mock 上游），详细覆盖、环境和真实网络失败/修正见 [B4 报告](b4-test-report.md)。
+
+人工验收后的日志修正又新增 `backend/tests/test_logging_config.py` 的 12 项回归，当前后端总数为 184，Python 3.10 / 3.13 均通过。用例使用 Uvicorn 真实格式器，覆盖彩色插值、访问日志字段及查询脱敏；另有真实服务器日志验证。上段 172 项是修正前快照，具体前后结果与证据见 B4 报告末节。

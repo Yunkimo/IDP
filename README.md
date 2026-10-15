@@ -35,7 +35,7 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 | **小程序 C4–C5**：部署 / 文档与演示 | ⬜ 待开发 |
 | **工程基建**：CI 双 job、ruff、`main` 分支保护 | ✅ 已完成 |
 
-> B4（联网查询）为可选项：天气 / 搜索已由桌宠端本地实现，暂不单独立项。
+> B4 已按用户要求实施为后端天气 / 搜索接口（Issue #8），真实 curl 验收通过，待评审；桌宠原有本地工具继续可用，接入方式由 A/B 评审确认。
 
 细化到验收标准的任务清单见 [docs/tasks/](docs/tasks/)。
 
@@ -111,6 +111,8 @@ config.json      桌宠非敏感配置
 | [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
 | [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
 | [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
+| [B4 天气与搜索](docs/b4-web-query.md) | curl 示例、输入/响应契约、配置与故障处理 |
+| [B4 测试报告](docs/b4-test-report.md) | 双版本回归、真实网络摘要、失败修正与原始证据 |
 | [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
 | [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
 | [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
