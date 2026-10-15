@@ -4,7 +4,6 @@ import asyncio
 import sqlite3
 import subprocess
 import sys
-import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import closing
 from datetime import datetime, timezone
@@ -217,9 +216,31 @@ def test_cancel_while_sending_leaves_recoverable_lease(client):
 
 def test_locked_database_does_not_block_event_loop_and_recovers(client, monkeypatch):
     async def scenario():
-        reminder()
+        item = reminder()
         monkeypatch.setattr(config, "DB_TIMEOUT_SECONDS", 0.05)
         monkeypatch.setattr(config, "SCHEDULER_INTERVAL_SECONDS", 0.01)
+        loop = asyncio.get_running_loop()
+        lock_failed = asyncio.Event()
+        committed = asyncio.Event()
+        original_claim = reminder_store.claim_due
+        original_finish = reminder_store.finish
+
+        def observe_claim(now):
+            try:
+                return original_claim(now)
+            except sqlite3.OperationalError as exc:
+                if "locked" in str(exc):
+                    loop.call_soon_threadsafe(lock_failed.set)
+                raise
+
+        def observe_finish(claim, now, error):
+            changed = original_finish(claim, now, error)
+            if changed and error is None:
+                loop.call_soon_threadsafe(committed.set)
+            return changed
+
+        monkeypatch.setattr(reminder_store, "claim_due", observe_claim)
+        monkeypatch.setattr(reminder_store, "finish", observe_finish)
         conn = sqlite3.connect(config.DB_PATH)
         conn.execute("BEGIN IMMEDIATE")
         scheduler = Scheduler(AsyncMock(return_value=1), lambda: NOW)
@@ -230,15 +251,19 @@ def test_locked_database_does_not_block_event_loop_and_recovers(client, monkeypa
                 await asyncio.sleep(0.01)
                 ticks += 1
             assert ticks == 10
-            assert db.list_reminders()[0]["done"] == 0
+            await asyncio.wait_for(lock_failed.wait(), 2)
+            assert (
+                conn.execute("SELECT done FROM reminders WHERE id=?", (item["id"],)).fetchone()[0]
+                == 0
+            )
             conn.rollback()
-            deadline = time.monotonic() + 2
-            while db.list_reminders()[0]["done"] == 0:
-                assert time.monotonic() < deadline
-                await asyncio.sleep(0.01)
+            # 等真实事务提交后停掉扫描，再读库；观察者不参与 50ms 锁竞争。
+            await asyncio.wait_for(committed.wait(), 2)
         finally:
             conn.close()
             await scheduler.stop()
+        assert db.list_reminders()[0]["done"] == 1
+        assert reminder_store.delivery_status(item["id"])["status"] == "sent"
 
     asyncio.run(scenario())
 
