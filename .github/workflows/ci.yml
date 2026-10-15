@@ -46,6 +46,9 @@ jobs:
       - name: Reminder scheduling smoke test
         run: python ../scripts/smoke_backend_scheduler.py --interval 1 --samples 30 --max-delay 5
 
+      - name: Weather and search curl smoke test (mock upstream)
+        run: python ../scripts/smoke_backend_web_query.py
+
       - name: Secret scan and whitespace check
         # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
         if: matrix.python-version == '3.12'
