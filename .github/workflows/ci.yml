@@ -49,6 +49,9 @@ jobs:
       - name: Weather and search curl smoke test (mock upstream)
         run: python ../scripts/smoke_backend_web_query.py
 
+      - name: Compression boundary checks (mock upstream)
+        run: python ../scripts/check_backend_compression.py
+
       - name: Secret scan and whitespace check
         # ruff 已在本 job 直接跑过，此处只保留 pre-commit 独有的两步
         if: matrix.python-version == '3.12'
