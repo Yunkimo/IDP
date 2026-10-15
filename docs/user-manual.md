@@ -175,3 +175,7 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 经同一播放器播放，无须网络；需要已安装中文语音（本机为 Microsoft Huihui Desktop）。
 在线和本地阶段各受 `tts_timeout_seconds` 限制，因此故障时总等待可能达到两倍该值；
 气泡显示不等待语音合成。非 Windows 系统没有此兜底，仍报告在线服务错误。
+
+## B4 天气与搜索入口
+
+后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，完整示例及错误排查见 [B4 使用说明](b4-web-query.md)。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。
