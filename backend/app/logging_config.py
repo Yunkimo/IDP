@@ -16,7 +16,7 @@ class QueryTokenFilter(logging.Filter):
 
 def install_log_filters() -> None:
     """为应用使用的服务器日志添加幂等过滤器。"""
-    for name in ("uvicorn.error", "uvicorn.access"):
+    for name in ("uvicorn.error", "uvicorn.access", "httpx"):
         logger = logging.getLogger(name)
         if not any(isinstance(item, QueryTokenFilter) for item in logger.filters):
             logger.addFilter(QueryTokenFilter())
