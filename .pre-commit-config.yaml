@@ -19,7 +19,7 @@ repos:
         always_run: true
       - id: secrets
         name: 密钥扫描
-        entry: detect-secrets-hook
+        entry: python -X utf8 -m detect_secrets.pre_commit_hook
         args: [--baseline, .secrets.baseline]
         language: system
         exclude: ^(assets/|.*requirements.*\.txt$)

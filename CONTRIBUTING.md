@@ -80,6 +80,9 @@ python -m pip_audit -r backend/requirements.txt
 扫描不向外部服务发送候选密钥验证；基线按文件和内容哈希匹配，不排除整个源文件。
 CI 复验这些检查，并运行真实 WebSocket 冒烟与后端依赖审计。
 
+密钥钩子使用 `python -X utf8`：中文 UTF-8 源文件在 Windows 默认本地编码下可能漏扫，
+固定编码以保持与 Linux CI 一致。明确的测试假值仅在对应行注明 allowlist 原因，禁止排除整个测试文件。
+
 后端运行依赖锁定在 `backend/requirements.txt`（包含跨平台环境标记）。升级时修改
 `backend/requirements.in`，使用 `uv==0.13.0` 重新生成并复验：
 
