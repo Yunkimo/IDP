@@ -76,3 +76,27 @@ AI 纠错过程记录在 [ai-log](ai-log.md)。跨端时间与完成语义为待
 用户授权统一修复后，[最新报告](b2-final-acceptance.md)记录 30/30 真实气泡限时显示、
 故障重连去重及真实播放器完成播放；桌宠 106 项自动化通过。
 前述失败历史继续保留，未改写为成功；窗口重启去重、微信、独立人工评审仍不在本轮结论中。
+
+## C 小程序 / 部署 / 文档（YingboQi）
+
+C 侧证据索引：实现与验收记录在 Issue #9/#10/#23/#24（#9/#23/#24 已随 PR #22 合入 develop 并关闭；#10 待 PR #25 合并）。用例与自动化入口见 [test-cases.md](test-cases.md)；AI 使用记录在本地守则（仓库 ai-log.md 已由团队移除）。
+
+| 项目 | 当前证据与状态 |
+|---|---|
+| 1 编码规范、6 提交格式、7 职责与粒度、8 提交检查 | CONTRIBUTING（英文 Conventional Commits）；小程序端 ESLint（eslint.config.js，CI 执行）+ 后端 Ruff/pre-commit 复用；提交一任务一提交（feat(miniprogram)/feat(backend)/fix/ci/docs 分粒度） |
+| 2 Git 协作、20 分工、21 测试设计贡献 | `feat/miniprogram` 分支 + PR #22（C1+识别+周次，已合并）/ PR #25（C2）/ 待建 PR（C3–C5）；跨端契约经 B 的 docs/b3-wechat.md 与 api-contract.md 协调；适配层逻辑测试 10 项入 CI |
+| 3 忽略规则 | `.gitignore` 排除 config.js、project.private.config.json、node_modules/、data/ 等；`git ls-files` 未含密钥文件 |
+| 4 依赖与许可证 | miniprogram/package-lock.json 精确锁定 eslint 10.12.0 / prettier 3.9.10（MIT）；后端依赖沿用 THIRD_PARTY_NOTICES.md 与 pip-audit |
+| 5 配置、9 分层与数据源、16 安全 | config.example.js 模板 + config.js 本地注入（API Key 不入库）；api.js/ws.js/subscribe.js 适配层集中配置；后端唯一数据源；订阅会话 Bearer 头、密钥不落截图/日志 |
+| 10 可运行脚本、13 实测、14 环境、15 用例 | scripts/run-backend.ps1|.sh、check_deployment.py（5/5 实测）、reset_demo.py（实测含备份）；C2 真机约 1 秒刷新人工确认；docs/environment.md C 段；docs/test-cases.md 全量映射 |
+| 11 帮助与手册 | docs/user-manual.md 小程序章节（安装/操作/故障排查）；miniprogram/README.md；docs/deploy.md 三路线 |
+| 12 重构量化 | C2 适配层集中化重构（页面各自建连 → utils/ws.js 单例）由逻辑测试保护；量化对比待整理 |
+| 17 演示视频 | 未录制（需本人录制；docs/demo-script.md 脚本已交付） |
+| 18 工作量、19 绩效 | docs/workload.md 已补 C 条目；点数与绩效比例待团队确认 |
+
+## C 交付物清单
+
+- 代码：miniprogram/（三页面 + api.js/ws.js/subscribe.js/datetime.js）、backend 识别接口（vision.py、course_import.py、teacher 字段与迁移）
+- 脚本：scripts/run-backend.*、check_deployment.py、reset_demo.py
+- 文档：docs/deploy.md、demo-script.md、test-cases.md、environment.md（C 段）、user-manual.md（小程序章节）、README.md 进度同步、miniprogram/README.md
+- CI：小程序 job（ESLint + 适配层测试，Node 22）

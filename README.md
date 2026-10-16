@@ -17,12 +17,12 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 
 | 部分 | 状态 |
 |---|---|
-| **桌宠基线**：无边框窗口、文字与双向语音对话、人设与跨会话记忆、Live2D 形象接口 | ✅ 已迁入 |
-| **后端 M1 骨架**：课表 / 日程 / 提醒 CRUD + `X-API-Key` 鉴权 + 6 单测 | ✅ 已完成 |
-| **工程基建**：CI 双 job、ruff 检查与格式化、`main` / `develop` 分支保护 | ✅ 已完成 |
-| **A1–A4** 后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ⬜ 待开发 |
-| **B1–B4** WebSocket 广播 / 到期调度 / 微信订阅 / 联网查询 | ⬜ 待开发 |
-| **C1–C5** 小程序骨架 / 实时刷新 / 订阅授权 / 部署 / 文档 | ⬜ 待开发 |
+| **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已合并 develop |
+| **后端 B1–B4**：WebSocket 广播 / 到期调度 / 微信订阅 / 联网查询 | ✅ B1/B2/B4 已合并；B3 见 PR #29 |
+| **小程序 C1–C2**：骨架 + api.js / 实时刷新（含识别导入、周次过滤） | ✅ 已合并 develop，真机验收通过 |
+| **小程序 C3**：订阅授权 | ✅ 小程序侧完成（依赖 B3 合并与模板配置，见 Issue #11） |
+| **小程序 C4**：部署脚本与三路线部署手册 | ✅ docs/deploy.md + scripts/（待评审） |
+| **小程序 C5**：文档 + CI + 演示 | 🔄 进行中（CI 已含 JS 检查；演示视频未录制） |
 
 细化到验收标准的任务清单见 [docs/tasks/](docs/tasks/)。
 
@@ -54,7 +54,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 
 ### 小程序
 
-尚未开始（计划目录 `miniprogram/`），见 [任务书 C](docs/tasks/C-miniprogram-deploy.md)。
+微信开发者工具导入 `miniprogram/`（appid 在 `project.config.json`），复制 `config.example.js` 为 `config.js` 填入后端地址与 `API_TOKEN`，开发期勾选「不校验合法域名」。详细步骤与接口约定见 [miniprogram/README.md](miniprogram/README.md)；部署路线见 [docs/deploy.md](docs/deploy.md)。
 
 ## 使用说明
 
@@ -70,7 +70,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 ```
 pet/             桌宠端（PyQt6：窗口 / 形象 / 对话 / 语音 / 记忆）
 backend/         后端（FastAPI + SQLite，唯一数据源）
-miniprogram/     小程序（待建）
+miniprogram/     小程序（页面 / api.js / ws.js 适配层 / 订阅流程，见 miniprogram/README.md）
 assets/          桌宠素材（live2d/ 为渲染运行时，模型由用户自行导入）
 docs/            设计文档、用户手册、测试与安全文档、三份任务书
 tests/           桌宠端测试（后端测试在 backend/tests/）
