@@ -49,7 +49,6 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 | `test_hotkey.py` | 全局快捷键注册、组合键解析与触发 | 8 |
 | `test_tts.py` | TTS 文本切分、音色参数、离线回退 | 6 |
 | `test_image_utils.py` | 图片缩放/裁剪纯函数 | 5 |
-| `test_live2d.py` | Live2D 视图边界 | 2 |
 
 合计 **106 个用例**，全部通过。
 
@@ -94,10 +93,9 @@ CI（GitHub Actions）在每次 push/PR 自动执行上述步骤，并额外跑�
 
 **已知局限**：
 
-- `window`（23%）、`sprite`（14%）、`hotkey_dialog`/`live2d_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
+- `window`（23%）、`sprite`（14%）、`hotkey_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
   按 §1 策略由 `scripts/smoke_test.py` + 人工验证覆盖。
 - 久坐检测的 Windows 分支（`ctypes` `GetLastInputTime`）在 Linux CI 下不覆盖，仅由本地人工验证。
-- Live2D 模块依赖 `PyQt6-WebEngine`，在 Linux CI 运行时未加载，故不计入 CI 覆盖率统计。
 
 ## B4 分支验证增量（2026-10-15）
 

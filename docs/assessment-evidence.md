@@ -16,7 +16,7 @@
 | 1 编码规范、6 提交格式、7 职责与粒度、8 提交检查 | CONTRIBUTING + Ruff + pre-commit；`ruff check pet/ tests/` 全过；Conventional Commits（`feat/fix/refactor/chore(pet): 中文`），一任务/一修复一提交 |
 | 2 Git 协作、20 分工、21 测试设计贡献 | `feat/desktop-agent` 分支 + issue #1–#4 + PR #17；A1–A4 单测注入假时钟/假空闲源（`tests/test_health.py` 等），共 56 用例；他人评审待 B/C |
 | 3 忽略规则 | `.gitignore` 排除 `.env`、`data/`、`__pycache__/`、构建产物；`agent.md` 走 `.git/info/exclude` 不入库 |
-| 4 依赖与许可证 | `requirements.txt`（httpx/openai/websocket-client/PyQt6 等）+ `THIRD_PARTY_NOTICES.md`；Live2D 模型不入库，素材授权待核验 |
+| 4 依赖与许可证 | `requirements.txt`（httpx/openai/websocket-client/PyQt6 等）+ `THIRD_PARTY_NOTICES.md`；形象素材为自备图片（PNG/WebP），素材授权待核验 |
 | 5 配置、9 分层与数据源、16 安全 | `.env`（LLM_API_KEY/BACKEND_URL/API_TOKEN）与 `config.json`（非敏感）双源解耦；密钥不入库不入截图；后端唯一数据源，桌宠经 `BackendClient`（`trust_env=False` 防代理劫持）+ `WsListener` 访问 |
 | 10 可运行脚本、13 实测、14 环境、15 用例 | `setup.bat`/`启动桌宠.bat`/`main.py`；实测：A1 连接真实后端「后端正常」、A2 查天气+加日程落库、A4 收到真实 `task.created`；A3 为 6 例单测（手动气泡验收经决定跳过）；`docs/environment.md`；56 单测全过 |
 | 11 帮助与手册 | `docs/user-manual.md`（安装/运行/自定义）；A1–A4 联调说明待补 |

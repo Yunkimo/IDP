@@ -189,8 +189,7 @@ class PetWindow(QWidget):
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
             return
         if not self._moved:
-            # 点击交给形象处理：Live2D 命中脸则换表情，未命中（或静态形象）再收起/展开输入框
-            self.avatar.tap(event.position().toPoint(), on_miss=self.toggle_input)
+            self.toggle_input()
         self._press_pos = None
         self._moved = False
 
@@ -214,48 +213,11 @@ class PetWindow(QWidget):
         commands: list[Command] = []
 
         commands.append(Command("切换图片…", self._choose_image))
-
-        if self.avatar.supports_motion:
-            commands.append(Command("逗一下 ♪", lambda: self.avatar.react("poke")))
-            commands.append(Submenu(self._build_expression_menu()))
-            commands.append(Submenu(self._build_model_menu()))
-
         commands.append(Submenu(self._build_persona_menu()))
         commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
         commands.append(Command("测试后端连接", self._debug_backend))
         commands.append(Command("退出", self.close))
         return commands
-
-    def _build_expression_menu(self) -> QMenu:
-        """组装「切换表情」子菜单：逐项包装现有表情切换调用。"""
-        menu = QMenu("切换表情", self)
-        commands = [
-            Command(name, lambda n=name: self.avatar.set_expression(n))
-            for name in self.avatar.expressions
-        ]
-        populate_menu(menu, commands)
-        return menu
-
-    def _build_model_menu(self) -> QMenu:
-        """组装「切换模型」子菜单：列出已发现的 Live2D 模型并勾选当前项。"""
-        from .live2d_view import discover_models
-
-        menu = QMenu("切换模型", self)
-        commands: list[Command] = []
-        for m in discover_models():
-            name = m["name"]
-            commands.append(
-                Command(
-                    name,
-                    lambda n=name: self._switch_live2d_model(n),
-                    checkable=True,
-                    checked=lambda n=name: n == self.settings.live2d_model,
-                )
-            )
-        populate_menu(menu, commands)
-        menu.addSeparator()
-        menu.addAction("添加 Live2D 模型…").triggered.connect(self._add_live2d_model)
-        return menu
 
     def _build_persona_menu(self) -> QMenu:
         """组装「切换人设」子菜单：逐项包装人设切换调用。"""
@@ -303,55 +265,13 @@ class PetWindow(QWidget):
         self._apply_image(Path(path))
 
     def _apply_image(self, src: Path) -> None:
-        """更换形象：用图片/动图引擎显示所选图片（必要时先从 Live2D 切过来）。"""
+        """更换形象：用图片/动图精灵引擎显示所选图片。"""
         # 先释放当前形象对图片文件的占用，避免覆盖正在显示的图片时锁文件崩溃
         self.avatar.clear()
         dest = normalize_image(src, self.settings.assets_dir)
         self.settings.update_frames([dest.name])
-        if self.settings.image_engine != "sprite":
-            self._switch_engine("sprite")  # 会按新 frames 重建并布局
-        else:
-            self.avatar.set_appearance(dest, self.settings.sprite_size)
-            self._size_and_position()
-
-    def _switch_engine(self, engine: str) -> None:
-        """运行时切换形象引擎（图片 ↔ Live2D），重建形象控件并重新布局。"""
-        if engine == self.settings.image_engine:
-            return
-        self.settings.update_image_engine(engine)
-        self._rebuild_avatar()
-
-    def _rebuild_avatar(self) -> None:
-        """销毁旧形象控件，按当前配置重建并重新布局。"""
-        old = self.avatar.widget
-        old.hide()
-        old.setParent(None)
-        old.deleteLater()
-
-        self.avatar = create_avatar(self.settings, parent=self)
-        self.avatar.widget.show()
+        self.avatar.set_appearance(dest, self.settings.sprite_size)
         self._size_and_position()
-
-    def _switch_live2d_model(self, name: str) -> None:
-        """切换到指定 Live2D 模型并重建形象。"""
-        if name == self.settings.live2d_model:
-            return
-        self.settings.update_live2d_model(name)
-        self._rebuild_avatar()
-
-    def _add_live2d_model(self) -> None:
-        """弹出「添加 Live2D 模型」对话框，导入成功后切换到新模型。"""
-        from .live2d_dialog import AddModelDialog
-
-        dialog = AddModelDialog(self)
-        if not dialog.exec() or not dialog.model_name:
-            return
-        self.settings.update_live2d_model(dialog.model_name)
-        if self.settings.image_engine != "live2d":
-            self._switch_engine("live2d")
-        else:
-            self._rebuild_avatar()
-        self.bubble.set_text(f"已添加并切换到「{dialog.model_name}」模型 ♪")
 
     # ---------- 文本/聊天 ----------
     def send_text(self, text: str) -> None:
@@ -391,8 +311,6 @@ class PetWindow(QWidget):
             self.memory.save()
             if _is_confused_reply(text):
                 self.avatar.react("confused")  # 没听懂用户提问
-            else:
-                self.avatar.reset_expression()  # 成功答出，恢复正常神态
             if self.settings.enable_voice:
                 self._speak(text)
         else:
