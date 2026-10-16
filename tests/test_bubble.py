@@ -72,3 +72,22 @@ def test_bubble_placement_clamped_to_screen(qapp):
     assert tail_up is True
     assert screen.left() <= x <= screen.right() - 240
     assert screen.top() <= y <= screen.bottom() - 160
+
+
+def test_bubble_placement_above_override(qapp):
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import bubble_placement
+
+    screen = QRect(0, 0, 1000, 700)
+    # 形象在上半屏（默认翻到下方）：above=True 强制气泡在形象上方、尾巴朝下
+    avatar = QRect(660, 40, 300, 200)
+    x, y, tail_up = bubble_placement(avatar, screen, 200, 60, 8, above=True)
+    assert tail_up is False
+    assert y < avatar.y()
+
+    # 形象在下半屏（默认在上方）：above=False 强制气泡在形象下方、尾巴朝上
+    avatar = QRect(40, 400, 300, 200)
+    x, y, tail_up = bubble_placement(avatar, screen, 200, 60, 8, above=False)
+    assert tail_up is True
+    assert y > avatar.y() + avatar.height()

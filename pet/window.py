@@ -168,7 +168,11 @@ class PetWindow(QWidget):
         if geo is None:
             return
         rect = QRect(avatar.mapToGlobal(QPoint(0, 0)), avatar.size())
-        x, y, tail_up = bubble_placement(rect, geo, self.bubble.width(), self.bubble.height(), _GAP)
+        # 输入框展开时占住形象下方，气泡强制让位到上方，避免挡住输入栏
+        above = True if self.input.isVisible() else None
+        x, y, tail_up = bubble_placement(
+            rect, geo, self.bubble.width(), self.bubble.height(), _GAP, above
+        )
         self.bubble.set_tail_up(tail_up)
         self.bubble.move(x, y)
 
@@ -211,6 +215,8 @@ class PetWindow(QWidget):
         else:
             self.input.show()
             self.input.focus_input()
+        # 输入框显隐改变形象下方的占用情况，气泡需要重新让位
+        self._position_bubble()
 
     # ---------- 更换形象 / 切换人设 ----------
     def contextMenuEvent(self, event) -> None:  # noqa: N802

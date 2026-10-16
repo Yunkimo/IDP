@@ -30,17 +30,24 @@ def wrap_text(text: str, max_width: int, measure) -> list[str]:
 
 
 def bubble_placement(
-    avatar: QRect, screen: QRect, bubble_w: int, bubble_h: int, gap: int
+    avatar: QRect,
+    screen: QRect,
+    bubble_w: int,
+    bubble_h: int,
+    gap: int,
+    above: bool | None = None,
 ) -> tuple[int, int, bool]:
     """计算气泡贴住形象一侧的屏幕坐标，返回 (x, y, tail_up)。
 
     规则：形象中心在下半屏时气泡在形象上方（尾巴朝下，False）；在上半屏时翻到
-    形象下方（尾巴朝上，True）。水平锚点取形象靠近屏幕中心的四分之一处，使气泡
+    形象下方（尾巴朝上，True）。above 传 True/False 可强制方位（如输入框展开占用
+    形象下方时让气泡让位到上方）。水平锚点取形象靠近屏幕中心的四分之一处，使气泡
     偏向屏幕内侧；最终位置夹在 screen 可用区域内。拆成纯函数便于单元测试。
     """
+    if above is None:
+        acy = avatar.y() + avatar.height() // 2
+        above = acy >= screen.center().y()
     acx = avatar.x() + avatar.width() // 2
-    acy = avatar.y() + avatar.height() // 2
-    above = acy >= screen.center().y()
     quarter = avatar.width() // 4
     anchor_x = avatar.x() + (3 * quarter if acx < screen.center().x() else quarter)
     x = min(max(anchor_x - bubble_w // 2, screen.left()), screen.right() - bubble_w)
