@@ -24,3 +24,51 @@ def test_bubble_append(qapp):
     assert b._text == "你好"
     b.append_chunk("呀")
     assert b._text == "你好呀"
+
+
+def test_bubble_tail_direction_toggle(qapp):
+    from pet.bubble import SpeechBubble
+
+    b = SpeechBubble(timeout_ms=0)
+    assert b._tail_up is False
+    b.set_tail_up(True)
+    assert b._tail_up is True
+    b.set_tail_up(True)  # 幂等
+    assert b._tail_up is True
+    b.set_tail_up(False)
+    assert b._tail_up is False
+
+
+def test_bubble_placement_flips_toward_screen_center(qapp):
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import bubble_placement
+
+    screen = QRect(0, 0, 1000, 700)
+    # 形象在左下角：气泡应在形象上方、偏向屏幕中心（右），尾巴朝下
+    avatar = QRect(40, 540, 300, 200)
+    x, y, tail_up = bubble_placement(avatar, screen, 200, 60, 8)
+    assert tail_up is False
+    assert y < avatar.y()
+    assert x > avatar.x()
+
+    # 形象在右上角：气泡应翻到形象下方、偏向屏幕中心（左），尾巴朝上
+    avatar = QRect(660, 40, 300, 200)
+    x, y, tail_up = bubble_placement(avatar, screen, 200, 60, 8)
+    assert tail_up is True
+    assert y > avatar.y() + avatar.height()
+    assert x < avatar.x() + avatar.width() // 2
+
+
+def test_bubble_placement_clamped_to_screen(qapp):
+    from PyQt6.QtCore import QRect
+
+    from pet.bubble import bubble_placement
+
+    # 形象贴屏幕左上角、气泡比下方空间还高：翻到下方并夹在可用区域内
+    screen = QRect(0, 0, 1000, 300)
+    avatar = QRect(0, 0, 300, 200)
+    x, y, tail_up = bubble_placement(avatar, screen, 240, 160, 8)
+    assert tail_up is True
+    assert screen.left() <= x <= screen.right() - 240
+    assert screen.top() <= y <= screen.bottom() - 160
