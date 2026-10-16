@@ -12,6 +12,7 @@ from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
 from .bubble import SpeechBubble
+from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
 from .health import HealthMonitor
@@ -205,48 +206,70 @@ class PetWindow(QWidget):
         if not self._hit_avatar(event.pos()):
             return
         menu = QMenu(self)
-
-        change = menu.addAction("切换图片…")
-        change.triggered.connect(self._choose_image)
-
-        if self.avatar.supports_motion:
-            poke = menu.addAction("逗一下 ♪")
-            poke.triggered.connect(lambda: self.avatar.react("poke"))
-
-            expr_menu = menu.addMenu("切换表情")
-            for name in self.avatar.expressions:
-                act = expr_menu.addAction(name)
-                act.triggered.connect(lambda _checked=False, n=name: self.avatar.set_expression(n))
-
-            model_menu = menu.addMenu("切换模型")
-            self._populate_model_menu(model_menu)
-            model_menu.addSeparator()
-            add_model = model_menu.addAction("添加 Live2D 模型…")
-            add_model.triggered.connect(self._add_live2d_model)
-        else:
-            to_live2d = menu.addAction("切换为 Live2D 动态形象")
-            to_live2d.triggered.connect(lambda: self._switch_engine("live2d"))
-
-        persona_menu = menu.addMenu("切换人设")
-        for name in self.settings.personas:
-            act = persona_menu.addAction(name)
-            act.triggered.connect(lambda _checked=False, n=name: self._switch_persona(n))
-        persona_menu.addSeparator()
-        add_act = persona_menu.addAction("添加人设…")
-        add_act.triggered.connect(self._add_persona)
-
-        hotkey_act = menu.addAction("设置语音快捷键…")
-        hotkey_act.triggered.connect(self._set_voice_hotkey)
-
-        backend_act = menu.addAction("测试后端连接")
-        backend_act.triggered.connect(self._debug_backend)
-
-        quit_act = menu.addAction("退出")
-        quit_act.triggered.connect(self.close)
-
+        populate_menu(menu, self._build_commands())
         menu.exec(event.globalPos())
 
+    def _build_commands(self) -> list[Command]:
+        """按固定顺序组装右键菜单：命令与子菜单逐项包装。"""
+        commands: list[Command] = []
+
+        commands.append(Command("切换图片…", self._choose_image))
+
+        if self.avatar.supports_motion:
+            commands.append(Command("逗一下 ♪", lambda: self.avatar.react("poke")))
+            commands.append(Submenu(self._build_expression_menu()))
+            commands.append(Submenu(self._build_model_menu()))
+
+        commands.append(Submenu(self._build_persona_menu()))
+        commands.append(Command("设置语音快捷键…", self._set_voice_hotkey))
+        commands.append(Command("测试后端连接", self._debug_backend))
+        commands.append(Command("退出", self.close))
+        return commands
+
+    def _build_expression_menu(self) -> QMenu:
+        """组装「切换表情」子菜单：逐项包装现有表情切换调用。"""
+        menu = QMenu("切换表情", self)
+        commands = [
+            Command(name, lambda n=name: self.avatar.set_expression(n))
+            for name in self.avatar.expressions
+        ]
+        populate_menu(menu, commands)
+        return menu
+
+    def _build_model_menu(self) -> QMenu:
+        """组装「切换模型」子菜单：列出已发现的 Live2D 模型并勾选当前项。"""
+        from .live2d_view import discover_models
+
+        menu = QMenu("切换模型", self)
+        commands: list[Command] = []
+        for m in discover_models():
+            name = m["name"]
+            commands.append(
+                Command(
+                    name,
+                    lambda n=name: self._switch_live2d_model(n),
+                    checkable=True,
+                    checked=lambda n=name: n == self.settings.live2d_model,
+                )
+            )
+        populate_menu(menu, commands)
+        menu.addSeparator()
+        menu.addAction("添加 Live2D 模型…").triggered.connect(self._add_live2d_model)
+        return menu
+
+    def _build_persona_menu(self) -> QMenu:
+        """组装「切换人设」子菜单：逐项包装人设切换调用。"""
+        menu = QMenu("切换人设", self)
+        commands: list[Command] = []
+        for name in self.settings.personas:
+            commands.append(Command(name, lambda n=name: self._switch_persona(n)))
+        populate_menu(menu, commands)
+        menu.addSeparator()
+        menu.addAction("添加人设…").triggered.connect(self._add_persona)
+        return menu
+
     def _switch_persona(self, name: str) -> None:
+        """切换人设，并清空旧人设对话避免语气/身份残留。"""
         if not self.settings.switch_persona(name):
             return
         self.memory.set_system(build_system_prompt(self.settings))
@@ -268,6 +291,7 @@ class PetWindow(QWidget):
             self._switch_persona(name)
 
     def _choose_image(self) -> None:
+        """弹出图片选择框并更换形象。"""
         path, _ = QFileDialog.getOpenFileName(
             self,
             "选择桌宠形象",
@@ -307,16 +331,6 @@ class PetWindow(QWidget):
         self.avatar = create_avatar(self.settings, parent=self)
         self.avatar.widget.show()
         self._size_and_position()
-
-    def _populate_model_menu(self, menu: QMenu) -> None:
-        """往「切换模型」子菜单填充已发现的 Live2D 模型，勾选当前项。"""
-        from .live2d_view import discover_models
-
-        for m in discover_models():
-            act = menu.addAction(m["name"])
-            act.setCheckable(True)
-            act.setChecked(m["name"] == self.settings.live2d_model)
-            act.triggered.connect(lambda _checked=False, n=m["name"]: self._switch_live2d_model(n))
 
     def _switch_live2d_model(self, name: str) -> None:
         """切换到指定 Live2D 模型并重建形象。"""
