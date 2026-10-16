@@ -11,7 +11,7 @@
     }
   },
   "frames": [
-    "custom.gif"
+    "tray.webp"
   ],
   "sprite_size": 300,
   "whisper_model": "base",
