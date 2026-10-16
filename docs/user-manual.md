@@ -201,3 +201,7 @@ Windows 默认允许 `tts_windows_fallback=true`：在线服务失败后使用�
 | 点订阅提醒提示未配置模板 | `config.js` 的 `subscribeTemplateId` 为空（需在微信公众平台申请模板） |
 | 订阅登记 503/401 | B3 后端未启用（`WX_ENABLED`）或会话过期（重新点一次会重新登录） |
 | 页面不自动刷新 | 后端事件连接依赖 WS；重进页面会 REST 重读，杀后端再重启会退避重连 |
+
+## B4 天气与搜索入口
+
+后端启动后，可使用带 X-API-Key 的 curl 请求获取天气和搜索摘要，完整示例及错误排查见 [B4 使用说明](b4-web-query.md)。无需天气/搜索上游密钥；无公网条件下运行 `python scripts/smoke_backend_web_query.py` 验证 Mock 链路，显式增加 `--live` 才进行真实上游验收。

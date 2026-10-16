@@ -1,10 +1,20 @@
 # 智能桌宠 · Intelligent Desk Pet
 
-[![CI](https://github.com/Yunkimo/IDP/actions/workflows/ci.yml/badge.svg)](https://github.com/Yunkimo/IDP/actions)
+[![CI](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions/workflows/ci.yml/badge.svg)](https://github.com/Yunkimo/Intelligent-Desktop-Pet/actions)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 
 期末课设：三端协作的智能桌面宠物。桌宠端用文字 / 语音与用户对话，靠大模型 + 工具调用查课表、排日程、设提醒；后端是唯一数据源与调度中枢；小程序让用户在手机上查改并接收离线提醒。
+
+## 功能特性
+
+- **AI 学习生活规划**：文字 / 语音对话，大模型 + 工具调用自动查课表、排日程、设提醒。
+- **课表提醒**：课表增删改查（桌宠端与小程序，支持拍照识别导入），到期自动提醒。
+- **健康关怀**：久坐检测，按连续在座时长提醒起身喝水 / 休息。
+- **多端提醒**：后端统一调度，到点经 WebSocket 推送到桌宠、经订阅消息推送到手机。
+- **可联网查询**：天气、搜索等联网问答（免 key）。
+
+## 系统架构
 
 ```
 桌宠端（A）   ↔   后端（B）   ↔   小程序（C）
@@ -17,12 +27,17 @@ HTTP REST + WebSocket                  HTTP REST + WebSocket
 
 | 部分 | 状态 |
 |---|---|
-| **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已合并 develop |
-| **后端 B1–B4**：WebSocket 广播 / 到期调度 / 微信订阅 / 联网查询 | ✅ B1/B2/B4 已合并；B3 见 PR #29 |
+| **桌宠端 A1–A4**：后端客户端 / Agent 工具调用 / 健康关怀 / 实时接收 | ✅ 已完成 |
+| **后端 B1–B2**：WebSocket 广播 / 到期提醒调度器 | ✅ 已完成 |
+| **后端 B3**：微信订阅消息（离线推送） | 🔄 实现见 PR #29，待合并 |
+| **后端 B4**：天气 / 搜索接口 | ✅ 真实 curl 验收通过，待评审 |
 | **小程序 C1–C2**：骨架 + api.js / 实时刷新（含识别导入、周次过滤） | ✅ 已合并 develop，真机验收通过 |
 | **小程序 C3**：订阅授权 | ✅ 小程序侧完成（依赖 B3 合并与模板配置，见 Issue #11） |
 | **小程序 C4**：部署脚本与三路线部署手册 | ✅ docs/deploy.md + scripts/（待评审） |
 | **小程序 C5**：文档 + CI + 演示 | 🔄 进行中（CI 已含 JS 检查；演示视频未录制） |
+| **工程基建**：CI 多 job、ruff、`main` 分支保护 | ✅ 已完成 |
+
+> B4 已按用户要求实施为后端天气 / 搜索接口（Issue #8），真实 curl 验收通过，待评审；桌宠原有本地工具继续可用，接入方式由 A/B 评审确认。
 
 细化到验收标准的任务清单见 [docs/tasks/](docs/tasks/)。
 
@@ -54,7 +69,7 @@ copy .env.example .env     :: 填入 API_TOKEN
 
 ### 小程序
 
-微信开发者工具导入 `miniprogram/`（appid 在 `project.config.json`），复制 `config.example.js` 为 `config.js` 填入后端地址与 `API_TOKEN`，开发期勾选「不校验合法域名」。详细步骤与接口约定见 [miniprogram/README.md](miniprogram/README.md)；部署路线见 [docs/deploy.md](docs/deploy.md)。
+微信开发者工具导入 `miniprogram/` 目录（`project.config.json` 已填 appid）。复制 `config.example.js` 为 `config.js`，填入后端地址与 `backend/.env` 的 `API_TOKEN`；开发期在「详情 → 本地设置」勾选「不校验合法域名」。详细步骤、接口约定与实时刷新说明见 [miniprogram/README.md](miniprogram/README.md)；部署路线见 [docs/deploy.md](docs/deploy.md)。
 
 ## 使用说明
 
@@ -87,13 +102,26 @@ config.json      桌宠非敏感配置
 | B [@wwweiliang](https://github.com/wwweiliang) | 后端服务 | `feat/backend-realtime` | [B](docs/tasks/B-backend-service.md) |
 | C [@YingboQi](https://github.com/YingboQi) | 小程序 + 部署 + 文档 | `feat/miniprogram` | [C](docs/tasks/C-miniprogram-deploy.md) |
 
-分支模型：`main`（主干）/ `develop`（开发）/ `feat/*`（特性）。`main` 与 `develop` 均已开启分支保护，改动须经 PR + CI 通过 + 1 人审批。
+分支模型：`main`（主干）/ `develop`（开发）/ `feat/*`（特性）。`main` 已开启分支保护（PR + CI 通过 + 1 人审批），`develop` 为开放开发分支。
 
 ## 文档
 
-- [设计文档（架构与设计模式）](docs/design.md)
-- [用户手册](docs/user-manual.md) ｜ [测试文档](docs/testing.md) ｜ [信息安全设计](docs/security.md)
-- [任务书 A / B / C](docs/tasks/)
+| 文档 | 说明 |
+|---|---|
+| [设计文档](docs/design.md) | 架构演进、设计模式、重构效果量化 |
+| [用户手册](docs/user-manual.md) | 安装、运行与操作说明 |
+| [测试文档](docs/testing.md) | 测试策略、用例清单、实验环境与覆盖率 |
+| [信息安全设计](docs/security.md) | 密钥管理、隐私保护、供应链 |
+| [API 契约](docs/api-contract.md) | 后端 REST / WebSocket 实时事件字段 |
+| [B4 天气与搜索](docs/b4-web-query.md) | curl 示例、输入/响应契约、配置与故障处理 |
+| [B4 测试报告](docs/b4-test-report.md) | 双版本回归、真实网络摘要、失败修正与原始证据 |
+| [考核证据索引](docs/assessment-evidence.md) | 各评分点对应的代码 / 测试 / 证据 |
+| [AI 辅助开发记录](docs/ai-log.md) | 使用 AI 助手的过程与关键决策 |
+| [第三方依赖说明](THIRD_PARTY_NOTICES.md) | 依赖许可证清单 |
+| [贡献指南](CONTRIBUTING.md) | 分支、提交与代码风格约定 |
+| [任务书 A / B / C](docs/tasks/) | 三人任务分解与验收标准 |
+
+> **演示视频**：待录制后补链接（由成员 A 录制，覆盖「对话 → 排日程 → 到期提醒 → 手机收消息」端到端流程）。
 
 ## 许可证与依赖
 

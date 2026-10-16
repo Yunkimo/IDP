@@ -77,6 +77,7 @@ AI 纠错过程记录在 [ai-log](ai-log.md)。跨端时间与完成语义为待
 故障重连去重及真实播放器完成播放；桌宠 106 项自动化通过。
 前述失败历史继续保留，未改写为成功；窗口重启去重、微信、独立人工评审仍不在本轮结论中。
 
+<<<<<<< HEAD
 ## C 小程序 / 部署 / 文档（YingboQi）
 
 C 侧证据索引：实现与验收记录在 Issue #9/#10/#23/#24（#9/#23/#24 已随 PR #22 合入 develop 并关闭；#10 待 PR #25 合并）。用例与自动化入口见 [test-cases.md](test-cases.md)；AI 使用记录在本地守则（仓库 ai-log.md 已由团队移除）。
@@ -100,3 +101,19 @@ C 侧证据索引：实现与验收记录在 Issue #9/#10/#23/#24（#9/#23/#24 �
 - 脚本：scripts/run-backend.*、check_deployment.py、reset_demo.py
 - 文档：docs/deploy.md、demo-script.md、test-cases.md、environment.md（C 段）、user-manual.md（小程序章节）、README.md 进度同步、miniprogram/README.md
 - CI：小程序 job（ESLint + 适配层测试，Node 22）
+=======
+## B4 增量证据（Issue #8，2026-10-15）
+
+| 评分项 | 证据及限制 |
+|---|---|
+| 1、6、7、8 规范与提交 | Ruff、pre-commit、英文 Conventional Commits，功能/测试、共享测试维护、文档按职责提交 |
+| 2、20、21 Git 协作与分工 | 独立 feat/backend-web-query 分支关联既有 #8；A/C 接入及独立评审待确认 |
+| 3、4 忽略与供应链 | 临时数据库、仓库外 agent 守则、现有忽略规则；无新增运行依赖，依赖审计无已知漏洞 |
+| 5、9、16 配置、解耦、安全 | 路由与网络适配器分层，配置化资源预算、固定上游、超时/大小限制，见 [说明](b4-web-query.md) |
+| 10、11 脚本与帮助 | 真实 Uvicorn + curl 脚本、用户手册和部署命令；Mock 与 live 分开 |
+| 12、13、14、15 设计增益、量化、环境、测试 | [报告](b4-test-report.md)：172 项后端、106 项桌面；真实两种摘要、失败记录、压缩修正；未虚构改前性能 |
+| 17 视频 | 尚未录制，不把 curl JSON 当作系统视频 |
+| 18、19 工作量与绩效 | [台账](workload.md) 初估 5 点，实际验收和分配待团队确认 |
+
+本次体现 Python 异步、流读取、有限解压、HTML 解析、适配器和依赖注入。公网服务器复现、嵌入式验证及 GUI 联调不在已完成证据内；AI 真实纠错见 [记录](ai-log.md)。
+>>>>>>> origin/develop
