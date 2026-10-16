@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 
-from PyQt6.QtCore import Qt, QUrl
+from PyQt6.QtCore import QPoint, QRect, Qt, QUrl
 from PyQt6.QtGui import QGuiApplication
 from PyQt6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QFileDialog, QInputDialog, QMenu, QWidget
 from .asr import ASREngine
 from .avatar import create_avatar
 from .backend_client import BackendClient, WsListener, build_ws_url
-from .bubble import SpeechBubble
+from .bubble import SpeechBubble, bubble_placement
 from .commands import Command, Submenu, populate_menu
 from .config import Settings
 from .event_cache import RecentEvents
@@ -28,7 +28,6 @@ from .worker import ASRWorker, ChatWorker, TTSWorker
 
 _GAP = 8
 _INPUT_H = 36
-_BUBBLE_RESERVE = 240
 
 # 回复里出现这些词，通常表示宠物没听懂 / 需要用户澄清，此时做「疑惑」表情
 _DOUBT_KEYWORDS = (
@@ -134,7 +133,8 @@ class PetWindow(QWidget):
         sw = self.avatar.widget.width()
         sh = self.avatar.widget.height()
         self.win_w = max(320, sw + 120)
-        self.win_h = sh + _INPUT_H + _BUBBLE_RESERVE + _GAP * 4
+        # 气泡已是独立置顶浮层，窗口只需容纳形象 + 输入框，不再预留气泡空间
+        self.win_h = sh + _INPUT_H + _GAP * 2
         self.resize(self.win_w, self.win_h)
 
         screen = QGuiApplication.primaryScreen()
@@ -158,11 +158,19 @@ class PetWindow(QWidget):
         self._position_bubble()
 
     def _position_bubble(self) -> None:
-        if not self.bubble.isVisible():
+        # 气泡随宠物在屏幕上的方位自适应：形象靠下半屏时气泡在形象上方，靠上半屏
+        # 时翻到形象下方（尾巴方向随之翻转），水平方向偏向屏幕中心，并夹在可用区域
+        # 内。首条文本前气泡仍隐藏，但 move() 对隐藏控件同样生效，故不判断
+        # isVisible()，避免首条气泡落在屏幕左上角。
+        avatar = self.avatar.widget
+        screen = avatar.screen() or QGuiApplication.primaryScreen()
+        geo = screen.availableGeometry() if screen else None
+        if geo is None:
             return
-        bx = (self.width() - self.bubble.width()) // 2
-        by = self.avatar.widget.y() - self.bubble.height() - _GAP
-        self.bubble.move(max(0, bx), max(0, by))
+        rect = QRect(avatar.mapToGlobal(QPoint(0, 0)), avatar.size())
+        x, y, tail_up = bubble_placement(rect, geo, self.bubble.width(), self.bubble.height(), _GAP)
+        self.bubble.set_tail_up(tail_up)
+        self.bubble.move(x, y)
 
     # ---------- 拖拽与点击 ----------
     def _hit_avatar(self, pos) -> bool:
@@ -184,6 +192,9 @@ class PetWindow(QWidget):
                 self._moved = True
                 self.move(self.pos() + delta)
                 self._press_pos = event.globalPosition().toPoint()
+                # 气泡是独立浮层：拖拽时同步跟随，并保持在桌宠窗口之上
+                self._position_bubble()
+                self.bubble.raise_()
 
     def mouseReleaseEvent(self, event) -> None:  # noqa: N802
         if event.button() != Qt.MouseButton.LeftButton or self._press_pos is None:
