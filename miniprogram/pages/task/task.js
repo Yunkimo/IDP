@@ -1,12 +1,21 @@
 // 日程页：列出全部日程/待办，支持添加/编辑/删除与勾选完成，数据同步到后端 SQLite。
+// 设置了提醒时间的日程可点「订阅提醒」走微信一次性订阅流程（C3，见 utils/subscribe.js）。
 const api = require('../../utils/api');
 const ws = require('../../utils/ws');
+const subscribe = require('../../utils/subscribe');
 const { dateStr } = require('../../utils/datetime');
 
 // 日程页关心的后端事件
 const WS_EVENTS = ['task.created', 'reminder.due', 'reconnect'];
 
-const EMPTY_FORM = { id: null, title: '', note: '', due_at: '' };
+const EMPTY_FORM = {
+  id: null,
+  title: '',
+  note: '',
+  due_at: '',
+  remind_date: '',
+  remind_time: '08:00',
+};
 
 Page({
   data: {
@@ -47,6 +56,7 @@ Page({
         ...t,
         checked: !!t.done,
         dueText: t.due_at ? t.due_at.slice(0, 10) : '无截止日期',
+        remindText: t.remind_at ? t.remind_at.slice(0, 16).replace('T', ' ') : '',
         overdue: !!t.due_at && !t.done && t.due_at.slice(0, 10) < today,
       }));
       this.setData({ tasks });
@@ -70,6 +80,8 @@ Page({
         title: t.title,
         note: t.note || '',
         due_at: t.due_at ? t.due_at.slice(0, 10) : '',
+        remind_date: t.remind_at ? t.remind_at.slice(0, 10) : '',
+        remind_time: t.remind_at ? t.remind_at.slice(11, 16) : '08:00',
       },
     });
   },
@@ -93,11 +105,15 @@ Page({
       title: form.title.trim(),
       note: form.note.trim(),
       due_at: form.due_at || null,
+      // 提醒时间：日期+时间合并为 "YYYY-MM-DDTHH:MM"（无时区，后端按 UTC+8 兼容处理）
+      remind_at: form.remind_date ? `${form.remind_date}T${form.remind_time}` : null,
     };
     wx.showLoading({ title: '保存中' });
     try {
       if (form.id) {
         await api.updateTask(form.id, payload);
+        // 编辑后提醒时间可能已变：清除本地订阅标记，允许（且需要）重新订阅
+        wx.removeStorageSync('sub_flag_' + form.id);
       } else {
         await api.createTask(payload);
       }
@@ -132,6 +148,17 @@ Page({
         wx.showLoading({ title: '删除中' });
         try {
           await api.deleteTask(id);
+          // 后端契约：删任务不会级联删提醒，这里清理该任务的孤儿提醒，避免「今日提醒」残留
+          try {
+            const reminders = await api.getReminders();
+            await Promise.all(
+              reminders
+                .filter((r) => r.task_id === id)
+                .map((r) => api.deleteReminder(r.id))
+            );
+          } catch (cleanupErr) {
+            console.warn('[task] 清理孤儿提醒失败（不影响删除）:', cleanupErr);
+          }
           wx.showToast({ title: '已删除', icon: 'success' });
         } catch (err) {
           // 删除失败（如服务端已不存在该日程）也刷新列表，避免页面残留陈旧卡片
@@ -142,6 +169,27 @@ Page({
         }
       },
     });
+  },
+
+  // 订阅提醒（C3）：用户主动点击触发微信一次性订阅授权，流程见 utils/subscribe.js
+  async subscribeTask(e) {
+    const task = e.currentTarget.dataset.task;
+    wx.showLoading({ title: '处理中', mask: true });
+    try {
+      const result = await subscribe.subscribeTaskReminder(task);
+      wx.hideLoading(); // 先关遮罩再弹 toast：真机上遮罩会盖住 toast
+      if (result.status === 'cancel') {
+        return; // 用户关闭授权弹窗：静默，不落库不提示
+      }
+      wx.showToast({ title: result.message || '订阅处理完成', icon: 'none', duration: 3000 });
+    } catch (err) {
+      wx.hideLoading();
+      wx.showToast({
+        title: (err && err.message) || '操作失败，请重试',
+        icon: 'none',
+        duration: 3000,
+      });
+    }
   },
 
   retry() {
