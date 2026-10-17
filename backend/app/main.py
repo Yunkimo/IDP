@@ -8,8 +8,9 @@ from fastapi import FastAPI
 from . import config, db
 from .logging_config import install_log_filters
 from .push_service import PushService
-from .routers import course_import, courses, reminders, tasks, wechat, ws
+from .routers import course_import, courses, reminders, tasks, web_query, wechat, ws
 from .scheduler import Scheduler
+from .web_query import WebQueryClient
 from .wechat_client import WeChatClient
 from .wechat_dispatcher import WeChatDispatcher
 
@@ -21,6 +22,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """初始化数据库与广播服务，退出时释放连接。"""
     db.init_db()
     _app.state.wechat_client = WeChatClient()
+    _app.state.web_query_client = WebQueryClient()
     _app.state.push_service = PushService(
         config.WS_SEND_TIMEOUT_SECONDS, config.WS_CLOSE_TIMEOUT_SECONDS, _app.state.wechat_client
     )
@@ -36,6 +38,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         await _app.state.scheduler.stop()
         await _app.state.push_service.close_all()
         await _app.state.wechat_client.close()
+        await _app.state.web_query_client.close()
 
 
 app = FastAPI(title="智能桌宠后端", version="0.1.0", lifespan=lifespan)
@@ -46,6 +49,7 @@ app.include_router(courses.router)
 app.include_router(reminders.router)
 app.include_router(ws.router)
 app.include_router(wechat.router)
+app.include_router(web_query.router)
 
 
 @app.get("/api/health")

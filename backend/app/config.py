@@ -89,3 +89,9 @@ if not isinstance(WX_TEMPLATE_FIELDS, dict) or not all(
     raise ValueError("WX_TEMPLATE_FIELDS 仅支持 thingN 对应 title/body、timeN 对应 remind_at")
 WX_DELIVERY_TIMEOUT_SECONDS = WX_TIMEOUT_SECONDS * 4
 WX_DELIVERY_LEASE_SECONDS = WX_DELIVERY_TIMEOUT_SECONDS + 2 * DB_TIMEOUT_SECONDS + 5
+# B4：固定上游主机，调用者只能提供城市或关键词，不能传入目标 URL。
+WEB_WEATHER_URL = "https://wttr.in"
+WEB_SEARCH_URL = "https://html.duckduckgo.com/html/"
+WEB_QUERY_TIMEOUT_SECONDS = positive_seconds("WEB_QUERY_TIMEOUT_SECONDS", "8")
+WEB_QUERY_MAX_BYTES = integer_setting("WEB_QUERY_MAX_BYTES", "262144", 1024, 1048576)
+WEB_QUERY_MAX_CONCURRENT = integer_setting("WEB_QUERY_MAX_CONCURRENT", "4", 1, 16)

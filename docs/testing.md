@@ -49,7 +49,6 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 | `test_hotkey.py` | 全局快捷键注册、组合键解析与触发 | 8 |
 | `test_tts.py` | TTS 文本切分、音色参数、离线回退 | 6 |
 | `test_image_utils.py` | 图片缩放/裁剪纯函数 | 5 |
-| `test_live2d.py` | Live2D 视图边界 | 2 |
 
 合计 **106 个用例**，全部通过。
 
@@ -95,7 +94,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 
 **已知局限**：
 
-- `window`（23%）、`sprite`（14%）、`hotkey_dialog`/`live2d_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
+- `window`（23%）、`sprite`（14%）、`hotkey_dialog`（0%）等 Qt 界面层不做无头 UI 自动化，
   按 §1 策略由 `scripts/smoke_test.py` + 人工验证覆盖。
 - 久坐检测的 Windows 分支（`ctypes` `GetLastInputTime`）在 Linux CI 下不覆盖，仅由本地人工验证。
 - Live2D 模块依赖 `PyQt6-WebEngine`，在 Linux CI 运行时未加载，故不计入 CI 覆盖率统计。
@@ -103,3 +102,9 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 ### B3 增量（2026-10-14）
 
 本地后端 168 项通过，行覆盖 94.19%（1153 语句、1086 覆盖）；桌面仍为 106 项通过。微信新增四模块行覆盖均为 100%，不代表分支覆盖或真机接收通过。Mock 30 次发送只取一次 token，重复登记未造成额外发送。[PR #29](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/29) 提供当前远端检查记录；详细用例、基线、限制和证据见 [B3 测试报告](b3-test-report.md)。
+
+## B4 分支验证增量（2026-10-15）
+
+本分支从 `42a95ba` 开始，新增 `backend/tests/test_web_query.py` 的 63 项用例，当前后端 172 项、桌面 106 项均通过。旧章节中的 109 项是 B4 之前的记录；B3 在另一 PR 中，不能将其用例计入本分支。B4 CI 新增 `scripts/smoke_backend_web_query.py`（真实 curl、Mock 上游），详细覆盖、环境和真实网络失败/修正见 [B4 报告](b4-test-report.md)。
+
+人工验收后的日志修正又新增 `backend/tests/test_logging_config.py` 的 12 项回归，当前后端总数为 184，Python 3.10 / 3.13 均通过。用例使用 Uvicorn 真实格式器，覆盖彩色插值、访问日志字段及查询脱敏；另有真实服务器日志验证。上段 172 项是修正前快照，具体前后结果与证据见 B4 报告末节。
