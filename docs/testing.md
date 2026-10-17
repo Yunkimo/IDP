@@ -77,7 +77,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 | `test_wechat.py` | 登录会话、授权归属、token 缓存/刷新、幂等发送、故障恢复、迁移及渠道隔离 | 59 |
 | `test_ws.py` | WebSocket 鉴权、广播推送、断线清理、事件格式 | 24 |
 
-合计 **243 个用例**（pytest 收集口径），Windows Python 3.14.5 实测通过；CI 在 Linux Python 3.10/3.12 的后端矩阵与 Python 3.12 桌面环境执行。
+合计 **243 个用例**（pytest 收集口径），本地 pytest 全部收集并通过；CI 在 Linux Python 3.10/3.12 的后端矩阵与 Python 3.12 桌面环境执行。
 
 > 口径说明：文档中的「用例数」按 pytest 收集（参数化展开）计；按 `def test_` 计为 230 个（桌面 105 + 后端 125），两者不是同一口径，不混用。
 
@@ -89,7 +89,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 |---|---|
 | OS | Windows 11 Home China 64-bit 10.0.26200（开发）/ Ubuntu latest（CI） |
 | 硬件 | Intel Core i7-1165G7，8 逻辑处理器；RAM 约 15.73 GiB |
-| Python | 3.13.0 与独立 CPython 3.10.22（兼容回归）/ CI 后端 3.10 与 3.12、桌面 3.12 |
+| Python | B2–B4 轮次为 3.13.0 与独立 CPython 3.10.22（兼容回归）；当前开发虚拟环境为 3.14.5 / CI 后端 3.10 与 3.12、桌面 3.12 |
 | 关键依赖 | PyQt6 6.11、openai 3.31、edge-tts 7.3、faster-whisper 1.2、pytest 9.1、Ruff 0.17、pre-commit 4.6 |
 | 测试框架 | pytest 9+、`QT_QPA_PLATFORM=offscreen`（CI 叠加 `xvfb-run`） |
 | 数据 | 每个自动化用例独立临时 SQLite；真实网络脚本每轮 30 条数据；不触碰用户数据库 |

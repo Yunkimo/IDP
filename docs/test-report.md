@@ -1,6 +1,6 @@
 # B1 WebSocket 验证报告
 
-议题：[Yunkimo/IDP #5](https://github.com/Yunkimo/IDP/issues/5)。
+议题：[Yunkimo/Intelligent-Desktop-Pet #5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5)。
 开发基线：`49944767f441b7c625cbbb48bd28bcff1c08c844`；环境见 [environment](environment.md)。
 功能与测试提交：`12635feeafe6f1204b33f43fd9485a4853841f75`。测试运行时的源码与该提交一致；
 本报告及原始输出在后续文档提交中留存，未修改被测代码。
