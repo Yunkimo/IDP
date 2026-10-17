@@ -18,7 +18,7 @@
 | 3 忽略规则 | `.gitignore` 排除 `.env`、`data/`、`__pycache__/`、构建产物；`agent.md` 走 `.git/info/exclude` 不入库 |
 | 4 依赖与许可证 | `requirements.txt`（httpx/openai/websocket-client/PyQt6 等）+ `THIRD_PARTY_NOTICES.md`；形象素材为自备图片（PNG/WebP），素材授权待核验 |
 | 5 配置、9 分层与数据源、16 安全 | `.env`（LLM_API_KEY/BACKEND_URL/API_TOKEN）与 `config.json`（非敏感）双源解耦；密钥不入库不入截图；后端唯一数据源，桌宠经 `BackendClient`（`trust_env=False` 防代理劫持）+ `WsListener` 访问 |
-| 10 可运行脚本、13 实测、14 环境、15 用例 | `setup.bat`/`启动桌宠.bat`/`main.py`；实测：A1 连接真实后端「后端正常」、A2 查天气+加日程落库、A4 收到真实 `task.created`；A3 为 6 例单测（手动气泡验收经决定跳过）；`docs/environment.md`；56 单测全过 |
+| 10 可运行脚本、13 实测、14 环境、15 用例 | `setup.bat`/`启动桌宠.bat`/`main.py`；2026-10-17 复跑：A1 health 200、A2 真实天气摘要 + 日程落库（LLM 工具循环 2 次调用）、A4 真实 WS 收到 `task.created`；A3 为 6 例单测（手动气泡验收经决定跳过）；`docs/environment.md`；116 单测全过。原始记录见 `docs/evidence/a-desktop/` |
 | 11 帮助与手册 | `docs/user-manual.md`（安装/运行/自定义）；A1–A4 联调说明待补 |
 | 12 重构量化 | A0 桌面模块采用策略+工厂（ChatProvider/形象引擎）、命令模式与纯函数抽取；前后行数、提交号与边界声明见 [重构效果量化分析](refactor-report.md) |
 | 17 演示视频 | 未录制（需本人录制，仅能提供脚本/指引） |
@@ -110,7 +110,7 @@ AI 纠错过程见 [测试文档](testing.md) §5.3。跨端时间与完成语�
 
 | 范围 | 目录 | 内容 | 状态 |
 |---|---|---|---|
-| A1–A4 桌宠端 | `evidence/a-desktop/`、`evidence/b2/` | 116 项 pytest 与行覆盖率；30 条真实气泡、截图、语音播放日志、故障重连数据 | 自动化与 GUI 验收有原始文件；A1/A2 的端到端人工验收只保留结论与提交号，未另存原始输出，不补造 |
+| A1–A4 桌宠端 | `evidence/a-desktop/`、`evidence/b2/` | 116 项 pytest 与行覆盖率；A1–A4 端到端 JSON/日志（health、天气、日程、LLM 工具循环、真实 WS 事件）；30 条真实气泡、截图、语音播放日志、故障重连数据 | 完整 |
 | B1–B4 后端 | `evidence/b1/`–`evidence/b4/`、`evidence/current/` | pytest 输出、覆盖率、真实网络逐条数据、依赖审计、压缩边界矩阵 | 完整 |
 | C1–C5 小程序 | 无 | — | C3/C4 真机联调与部署验收完成后由 C 补录，当前不臆造 |
 
