@@ -77,7 +77,7 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 | `test_wechat.py` | 登录会话、授权归属、token 缓存/刷新、幂等发送、故障恢复、迁移及渠道隔离 | 59 |
 | `test_ws.py` | WebSocket 鉴权、广播推送、断线清理、事件格式 | 24 |
 
-合计 **243 个用例**（pytest 收集口径），本地 pytest 全部收集并通过；CI 在 Linux Python 3.10/3.12 的后端矩阵与 Python 3.12 桌面环境执行。
+合计 **243 个用例**（pytest 收集口径），本地 pytest 全部通过、行覆盖 95%（原始输出见 `docs/evidence/current/`）；CI 在 Linux Python 3.10/3.12 的后端矩阵与 Python 3.12 桌面环境执行。
 
 > 口径说明：文档中的「用例数」按 pytest 收集（参数化展开）计；按 `def test_` 计为 230 个（桌面 105 + 后端 125），两者不是同一口径，不混用。
 
@@ -122,8 +122,11 @@ CI（GitHub Actions）在 main/develop 的 push 和 PR 时执行上述步骤，�
 | B2（2026-10-12） | 561 / 538 | 95.90% | `scheduler` 100%、`reminder_store` 97% |
 | B3（2026-10-14） | 1153 / 1086 | 94.19% | 微信四模块行覆盖 100% |
 | B4（2026-10-15） | 1059 / 994 | 93.86% | 路由 100%、适配器 98.54% |
+| 当前 develop（2026-10-17） | 1385 / 1315 | 95% | B3+B4 合并后 243 项通过；`wechat_dispatcher`/`wechat_store` 100% |
 
-B3/B4 为并行分支上的独立测量，编号不同源于分支代码范围不同，不能直接相减比较。桌宠端最近一次完整测量为 B1 阶段的 50%（`pet/` 1696 语句、849 覆盖），此后新增用例未重新统计覆盖率。
+B3/B4 为并行分支上的独立测量，编号不同源于分支代码范围不同，不能直接相减比较。当前 develop 的原始输出见 `docs/evidence/current/backend-pytest-coverage.txt`。
+
+桌宠端当前 116 项通过，行覆盖率 56%（`pet/` 1489 语句、829 覆盖，2026-10-17；B1 阶段为 50%），原始输出见 `docs/evidence/a-desktop/desktop-pytest-coverage.txt`。界面层 `window`/`sprite`/`hotkey_dialog` 覆盖较低，原因见 §5.4。
 
 后端高覆盖模块：`scheduler`/`schemas`/`main`/`logging_config`/`reminder_time` 100%、`push_service` 99%、`course_import` 98%、`db` 96%。桌宠端：`tts` 98%、`event_cache` 94%、`backend_client` 93%、`tools` 93%、`memory` 93%、`agent` 91%、`llm`/`providers` 89–97%。
 
