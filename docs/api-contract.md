@@ -66,7 +66,7 @@ B1 已由 PR #16 合并；B2 的时间、状态与验收口径补充仍需 A/C �
 - Uvicorn 的应用日志移除 URL 整个 query。反向代理、监控和客户端日志仍需独立脱敏，
   禁止记录完整连接 URL；调试级第三方协议日志不在本次脱敏保证内。
 
-复现方法见 [后端 WebSocket 验证报告](test-report.md)。实现参考：
+复现方法见 [测试文档](testing.md) §3.3、§5.2 与 `scripts/smoke_backend_ws.py`。实现参考：
 [FastAPI WebSockets 官方文档](https://fastapi.tiangolo.com/advanced/websockets/)。
 
 ## B2：提醒时间与调度状态（待评审补充）

@@ -6,7 +6,7 @@
 | A / Yunkimo | [#2](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/2) | Agent 工具调用（function calling + 工具循环 + 联网查询） | 待团队确认 | 已完成 | PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)，`67de45f`/`94861b7` | 待 B/C 评审 |
 | A / Yunkimo | [#3](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/3) | 健康关怀（久坐提醒） | 待团队确认 | 已完成 | PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)，`c273278`→`9ff1bef` | 待 B/C 评审 |
 | A / Yunkimo；本轮修复 wwweiliang | [#4](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/4) | 实时接收及用户授权的去重/语音补全 | 待团队确认，不重复计点 | 联调通过，待评审 | 原 PR [#17](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/17)；修复 PR [#21](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/21)、[验收数据](evidence/b2/)（汇总见 [测试文档](testing.md) §5.2） | 未冒充独立评审 |
-| B / wwweiliang | [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5) | WebSocket 广播，含测试与接口文档 | 5（守则初始估算，待团队确认） | 已合并，验收记录待补 | [PR #16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)、[测试报告](test-report.md)、[契约](api-contract.md) | 待 A/C 确认 |
+| B / wwweiliang | [#5](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/5) | WebSocket 广播，含测试与接口文档 | 5（守则初始估算，待团队确认） | 已合并，验收记录待补 | [PR #16](https://github.com/Yunkimo/Intelligent-Desktop-Pet/pull/16)、[测试文档](testing.md)、[契约](api-contract.md) | 待 A/C 确认 |
 | B / wwweiliang | [#6](https://github.com/Yunkimo/Intelligent-Desktop-Pet/issues/6) | 提醒调度、故障恢复、迁移及量化验证 | 8（守则初始估算，待团队确认） | 联调通过，待评审 | 功能 cbd0f63、[验收数据](evidence/b2/)（汇总见 [测试文档](testing.md) §5.2） | 未冒充独立评审 |
 
 2026-10-12 核验：B1 的 PR #16 已合并到 develop；GitHub reviews 接口未返回独立评审记录，
